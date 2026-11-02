@@ -3,10 +3,12 @@ import { Link } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import type { RoomDoc } from "../../lib/types";
+import { useAuth } from "../../lib/auth";
 
 type Room = RoomDoc & { id: string };
 
 export default function RoomList() {
+  const { user, loading: authLoading } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -27,7 +29,9 @@ export default function RoomList() {
     <div className="public-shell">
       <header className="public-header">
         <Link to="/" className="public-brand">Nhà trọ</Link>
-        <Link to="/dang-nhap" className="public-login">Đăng nhập</Link>
+        {!authLoading && !user && (
+          <Link to="/dang-nhap" className="public-login">Đăng nhập</Link>
+        )}
       </header>
       <main className="public-container">
         <h1 className="public-h1">Phòng cho thuê</h1>

@@ -20,6 +20,11 @@ export default function InquiryForm({ room }: { room: RoomDoc }) {
     const p = phone.trim();
     if (!n || !p) { setErr("Vui lòng nhập họ tên và số điện thoại."); return; }
     if (p.replace(/\D/g, "").length < 8) { setErr("Số điện thoại không hợp lệ."); return; }
+
+    if (room.status !== "vacant") {
+      setErr("Phòng này hiện không còn trống. Vui lòng chọn phòng khác.");
+      return;
+    }
     setSending(true);
     try {
       await addDoc(collection(db, "inquiries"), {

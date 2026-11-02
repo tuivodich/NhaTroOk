@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc,
+  collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, runTransaction,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { InquiryDoc, InquiryStatus } from "../lib/types";
@@ -48,13 +48,24 @@ export default function Inquiries() {
     return filter === "all" ? list : list.filter((x) => x.status === filter);
   }, [list, filter]);
 
-  const update = async (id: string, p: Partial<InquiryDoc>) => {
-    setBusy(id);
+  const update = async (it: InquiryDoc, p: Partial<InquiryDoc>) => {
+    setBusy(it.id);
     try {
-      await updateDoc(doc(db, "inquiries", id), {
-        ...p,
-        updatedAt: serverTimestamp(),
-        ...(uid ? { handledBy: uid } : {}),
+      await runTransaction(db, async (tx) => {
+        const inquiryRef = doc(db, "inquiries", it.id);
+        tx.update(inquiryRef, {
+          ...p,
+          updatedAt: serverTimestamp(),
+          ...(uid ? { handledBy: uid } : {}),
+        });
+        // Khi chuyển sang "converted": đánh dấu phòng đã thuê (atomic)
+        if (p.status === "converted" && it.roomId) {
+          const roomRef = doc(db, "rooms", it.roomId);
+          const roomSnap = await tx.get(roomRef);
+          if (roomSnap.exists() && roomSnap.data().status === "vacant") {
+            tx.update(roomRef, { status: "occupied" });
+          }
+        }
       });
     } catch (e: any) {
       alert(e?.message || "Cập nhật thất bại");
@@ -116,7 +127,7 @@ export default function Inquiries() {
 
             <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <select value={it.status} disabled={busy === it.id}
-                onChange={(e) => update(it.id, { status: e.target.value as InquiryStatus })}>
+                onChange={(e) => update(it, { status: e.target.value as InquiryStatus })}>
                 {(Object.keys(STATUS_LABEL) as InquiryStatus[]).map((k) => (
                   <option key={k} value={k}>{STATUS_LABEL[k]}</option>
                 ))}
@@ -125,7 +136,7 @@ export default function Inquiries() {
                 placeholder="Ghi chú nội bộ…"
                 defaultValue={it.notes ?? ""}
                 onBlur={(e) => {
-                  if ((e.target.value || "") !== (it.notes ?? "")) update(it.id, { notes: e.target.value });
+                  if ((e.target.value || "") !== (it.notes ?? "")) update(it, { notes: e.target.value });
                 }}
                 style={{ flex: 1, minWidth: 220, padding: "6px 8px" }}
               />
