@@ -14,6 +14,7 @@ import Users from "./pages/Users";
 import AuditLog from "./pages/AuditLog";
 import Settings from "./pages/Settings";
 import SettingsBrand from "./pages/SettingsBrand";
+import RoomExtras from "./pages/RoomExtras";
 import StaffInvites from "./pages/StaffInvites";
 
 export default function StaffShell() {
@@ -39,6 +40,7 @@ export default function StaffShell() {
           <NavLink to="/app" end>{t("dashboard")}</NavLink>
           <NavLink to="/app/properties">{t("properties")}</NavLink>
           <NavLink to="/app/rooms">{t("rooms")}</NavLink>
+          <NavLink to="/app/room-extras">Ảnh & Hiển thị</NavLink>
           <NavLink to="/app/tenants">{t("tenants")}</NavLink>
           <NavLink to="/app/contracts">{t("contracts")}</NavLink>
           <NavLink to="/app/invoices">{t("invoices")}</NavLink>
@@ -62,6 +64,7 @@ export default function StaffShell() {
             <Route index element={<Dashboard />} />
             <Route path="properties" element={<Properties />} />
             <Route path="rooms" element={<Rooms />} />
+            <Route path="room-extras" element={<RoomExtras />} />
             <Route path="tenants" element={<Tenants />} />
             <Route path="contracts" element={<Contracts />} />
             <Route path="invoices" element={<Invoices />} />

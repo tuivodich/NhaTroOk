@@ -1,3 +1,4 @@
+import FeaturedRooms from "../components/FeaturedRooms";
 import { Link } from "react-router-dom";
 import { useBrand } from "../brand/BrandProvider";
 import { useAuth } from "../lib/auth";
@@ -30,6 +31,7 @@ export default function Landing() {
         <h1 style={{ color: brand.brandColor }}>{brand.name}</h1>
         {brand.tagline && <p className="tagline">{brand.tagline}</p>}
         <p className="info">{t("comingSoonDesc")}</p>
+        <FeaturedRooms />
       </main>
 
       <footer className="landing-footer">

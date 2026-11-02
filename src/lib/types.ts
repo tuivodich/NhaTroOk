@@ -33,6 +33,10 @@ export interface RoomDoc {
   desc?: string;
   descEn?: string;
   meter?: { electricStart?: number; waterStart?: number };
+  // Phase 2:
+  photos?: string[];
+  published?: boolean;
+  featured?: boolean;
 }
 
 export interface TenantDoc {
