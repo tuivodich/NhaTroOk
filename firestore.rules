@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() { return isSignedIn() && userRole() == 'admin'; }
+
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+    }
+    match /properties/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /rooms/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /tenants/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /contracts/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /invoices/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+    }
+    match /staffInvites/{email} {
+      allow get: if isSignedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() == email;
+      allow list, create, update, delete: if isAdmin();
+    }
+  }
+}
