@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import Inquiries from "./pages/Inquiries";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import StaffShell from "./StaffShell";
@@ -16,6 +17,7 @@ export default function App() {
       <Route path="/app/*" element={<StaffShell />} />
       <Route path="/toi" element={<TenantShell />} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      <Route path="/app/inquiries" element={<Inquiries />} />
+          </Routes>
   );
 }

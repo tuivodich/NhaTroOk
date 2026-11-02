@@ -89,3 +89,22 @@ export interface AuditDoc {
 export function isAdminRole(role?: Role | null): boolean {
   return role === "admin";
 }
+
+// ===== Phase 3: Inquiries =====
+export type InquiryStatus = "new" | "contacted" | "scheduled" | "converted" | "rejected";
+
+export type InquiryDoc = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  roomId?: string | null;
+  roomCode?: string | null;
+  message?: string | null;
+  preferredDate?: string | null;
+  status: InquiryStatus;
+  notes?: string | null;
+  handledBy?: string | null;
+  createdAt?: any;
+  updatedAt?: any;
+};

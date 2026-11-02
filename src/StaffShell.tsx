@@ -43,6 +43,7 @@ export default function StaffShell() {
           <NavLink to="/app/room-extras">Ảnh & Hiển thị</NavLink>
           <NavLink to="/app/tenants">{t("tenants")}</NavLink>
           <NavLink to="/app/contracts">{t("contracts")}</NavLink>
+        <NavLink to="/app/inquiries">Yêu cầu thuê</NavLink>
           <NavLink to="/app/invoices">{t("invoices")}</NavLink>
           {isAdmin && <NavLink to="/app/users">{t("users")}</NavLink>}
           {isAdmin && <NavLink to="/app/staff-invites">Mời nhân viên</NavLink>}

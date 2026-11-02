@@ -1,0 +1,21 @@
+# === Phase 3 — thêm block này vào Firestore Rules ===
+# Chèn bên trong match /databases/{database}/documents { ... }
+
+    // --- Phase 3: Inquiries ---
+    match /inquiries/{id} {
+      // Ai cũng có thể gửi yêu cầu (public form)
+      allow create: if
+        request.resource.data.keys().hasAll(['name','phone','status','createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() >= 8
+        && request.resource.data.phone.size() <= 30
+        && request.resource.data.status == 'new';
+
+      // Chỉ staff/admin được đọc & cập nhật
+      allow read, update, delete: if
+        isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','staff'];
+    }
