@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, runTransaction,
+  collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, runTransaction, getDocs, where,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { InquiryDoc, InquiryStatus } from "../lib/types";
@@ -51,23 +51,56 @@ export default function Inquiries() {
   const update = async (it: InquiryDoc, p: Partial<InquiryDoc>) => {
     setBusy(it.id);
     try {
+      console.log("[Inquiry] updating", { id: it.id, roomId: it.roomId, roomCode: it.roomCode, patch: p });
+
+      // Fallback: nếu thiếu roomId mà có roomCode thì tìm room theo code
+      let resolvedRoomId: string | null = it.roomId ?? null;
+      if (p.status === "converted" && !resolvedRoomId && it.roomCode) {
+        console.log("[Inquiry] no roomId, lookup by roomCode:", it.roomCode);
+        const snap = await getDocs(query(collection(db, "rooms"), where("code", "==", it.roomCode)));
+        if (!snap.empty) {
+          resolvedRoomId = snap.docs[0].id;
+          console.log("[Inquiry] resolved roomId by code:", resolvedRoomId);
+        } else {
+          console.warn("[Inquiry] no room found with code", it.roomCode);
+        }
+      }
+
       await runTransaction(db, async (tx) => {
-        const inquiryRef = doc(db, "inquiries", it.id);
-        tx.update(inquiryRef, {
+        // ============ READS FIRST (Firestore bắt buộc) ============
+        let roomRef: any = null;
+        let roomSnap: any = null;
+        if (p.status === "converted" && resolvedRoomId) {
+          roomRef = doc(db, "rooms", resolvedRoomId);
+          roomSnap = await tx.get(roomRef);
+          console.log("[Inquiry] room snapshot", {
+            id: resolvedRoomId,
+            exists: roomSnap.exists(),
+            status: roomSnap.exists() ? roomSnap.data().status : null,
+          });
+        }
+
+        // ============ WRITES AFTER ============
+        tx.update(doc(db, "inquiries", it.id), {
           ...p,
           updatedAt: serverTimestamp(),
           ...(uid ? { handledBy: uid } : {}),
         });
-        // Khi chuyển sang "converted": đánh dấu phòng đã thuê (atomic)
-        if (p.status === "converted" && it.roomId) {
-          const roomRef = doc(db, "rooms", it.roomId);
-          const roomSnap = await tx.get(roomRef);
-          if (roomSnap.exists() && roomSnap.data().status === "vacant") {
-            tx.update(roomRef, { status: "occupied" });
-          }
+
+        if (roomRef && roomSnap && roomSnap.exists() && roomSnap.data().status === "vacant") {
+          tx.update(roomRef, { status: "occupied" });
+          console.log("[Inquiry] scheduling room -> occupied");
+        } else if (p.status === "converted") {
+          console.warn("[Inquiry] room NOT updated. Reasons:", {
+            hasRoomRef: !!roomRef,
+            roomExists: roomSnap?.exists?.() ?? false,
+            currentStatus: roomSnap?.data?.()?.status ?? null,
+          });
         }
       });
+      console.log("[Inquiry] transaction committed OK");
     } catch (e: any) {
+      console.error("[Inquiry] failed:", e);
       alert(e?.message || "Cập nhật thất bại");
     } finally {
       setBusy(null);
