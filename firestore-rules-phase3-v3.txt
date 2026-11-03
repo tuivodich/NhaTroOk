@@ -1,0 +1,19 @@
+# === Phase 3 (v3) — match /rooms ===
+# THAY THẾ block match /rooms/{id} cũ bằng block dưới đây
+# Cho phép staff đổi status CẢ HAI CHIỀU vacant <-> occupied
+# (admin đã có "allow write: if isAdmin()" nên không bị ảnh hưởng)
+
+    match /rooms/{id} {
+      allow read: if isSignedIn() || resource.data.published == true;
+      allow write: if isAdmin();
+
+      // Staff: chỉ được đổi status (một trong hai chiều)
+      allow update: if isSignedIn()
+        && userRole() in ['admin','staff']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && (
+          (resource.data.status == 'vacant' && request.resource.data.status == 'occupied')
+          ||
+          (resource.data.status == 'occupied' && request.resource.data.status == 'vacant')
+        );
+    }

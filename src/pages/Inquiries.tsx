@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, runTransaction, getDocs, where,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp,
+  where,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { InquiryDoc, InquiryStatus } from "../lib/types";
@@ -51,26 +59,51 @@ export default function Inquiries() {
   const update = async (it: InquiryDoc, p: Partial<InquiryDoc>) => {
     setBusy(it.id);
     try {
-      console.log("[Inquiry] updating", { id: it.id, roomId: it.roomId, roomCode: it.roomCode, patch: p });
+      const statusChanged = p.status !== undefined && p.status !== it.status;
+      console.log("[Inquiry] updating", {
+        id: it.id,
+        from: it.status,
+        to: p.status ?? it.status,
+        statusChanged,
+        roomId: it.roomId,
+        roomCode: it.roomCode,
+        patch: p,
+      });
 
-      // Fallback: nếu thiếu roomId mà có roomCode thì tìm room theo code
       let resolvedRoomId: string | null = it.roomId ?? null;
-      if (p.status === "converted" && !resolvedRoomId && it.roomCode) {
-        console.log("[Inquiry] no roomId, lookup by roomCode:", it.roomCode);
-        const snap = await getDocs(query(collection(db, "rooms"), where("code", "==", it.roomCode)));
+      if (!resolvedRoomId && it.roomCode) {
+        const snap = await getDocs(
+          query(collection(db, "rooms"), where("code", "==", it.roomCode))
+        );
         if (!snap.empty) {
           resolvedRoomId = snap.docs[0].id;
           console.log("[Inquiry] resolved roomId by code:", resolvedRoomId);
-        } else {
-          console.warn("[Inquiry] no room found with code", it.roomCode);
         }
       }
 
+      let siblingCount = 0;
+      if (
+        statusChanged &&
+        it.status === "converted" &&
+        p.status !== "converted" &&
+        resolvedRoomId
+      ) {
+        const sibSnap = await getDocs(
+          query(
+            collection(db, "inquiries"),
+            where("roomId", "==", resolvedRoomId),
+            where("status", "==", "converted")
+          )
+        );
+        siblingCount = sibSnap.docs.filter((d) => d.id !== it.id).length;
+        console.log("[Inquiry] siblings still converted:", siblingCount);
+      }
+
       await runTransaction(db, async (tx) => {
-        // ============ READS FIRST (Firestore bắt buộc) ============
         let roomRef: any = null;
         let roomSnap: any = null;
-        if (p.status === "converted" && resolvedRoomId) {
+
+        if (resolvedRoomId && statusChanged) {
           roomRef = doc(db, "rooms", resolvedRoomId);
           roomSnap = await tx.get(roomRef);
           console.log("[Inquiry] room snapshot", {
@@ -80,22 +113,46 @@ export default function Inquiries() {
           });
         }
 
-        // ============ WRITES AFTER ============
         tx.update(doc(db, "inquiries", it.id), {
           ...p,
           updatedAt: serverTimestamp(),
           ...(uid ? { handledBy: uid } : {}),
         });
 
-        if (roomRef && roomSnap && roomSnap.exists() && roomSnap.data().status === "vacant") {
-          tx.update(roomRef, { status: "occupied" });
-          console.log("[Inquiry] scheduling room -> occupied");
-        } else if (p.status === "converted") {
-          console.warn("[Inquiry] room NOT updated. Reasons:", {
-            hasRoomRef: !!roomRef,
-            roomExists: roomSnap?.exists?.() ?? false,
-            currentStatus: roomSnap?.data?.()?.status ?? null,
-          });
+        if (roomRef && roomSnap && roomSnap.exists() && statusChanged) {
+          const cur = roomSnap.data().status;
+
+          if (p.status === "converted" && cur === "vacant") {
+            tx.update(roomRef, { status: "occupied" });
+            console.log("[Inquiry] room -> occupied");
+          } else if (
+            it.status === "converted" &&
+            p.status !== "converted" &&
+            cur === "occupied" &&
+            siblingCount === 0
+          ) {
+            tx.update(roomRef, { status: "vacant" });
+            console.log("[Inquiry] room -> vacant (no sibling converted)");
+          } else if (
+            it.status === "converted" &&
+            p.status !== "converted" &&
+            cur === "occupied" &&
+            siblingCount > 0
+          ) {
+            console.log(
+              "[Inquiry] room stays occupied — still has",
+              siblingCount,
+              "converted inquiry"
+            );
+          } else {
+            console.log("[Inquiry] room unchanged (no condition matched)", {
+              cur,
+              from: it.status,
+              to: p.status,
+            });
+          }
+        } else if (!statusChanged) {
+          console.log("[Inquiry] status unchanged — room untouched");
         }
       });
       console.log("[Inquiry] transaction committed OK");
