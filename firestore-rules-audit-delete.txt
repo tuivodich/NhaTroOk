@@ -1,0 +1,7 @@
+# Them allow delete cho auditLogs
+
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow delete: if isAdmin();
+    }

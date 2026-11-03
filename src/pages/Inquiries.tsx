@@ -57,6 +57,17 @@ export default function Inquiries() {
   }, [list, filter]);
 
   const update = async (it: InquiryDoc, p: Partial<InquiryDoc>) => {
+    if (p.status !== undefined && p.status !== it.status) {
+      const userOk = window.confirm(
+        "Xác nhận chuyển trạng thái?\n\n" +
+        "Khách hàng: " + it.name + "\n" +
+        "Phòng: " + (it.roomCode ?? it.roomId ?? "—") + "\n\n" +
+        "Từ: " + STATUS_LABEL[it.status] + "\n" +
+        "Sang: " + STATUS_LABEL[p.status] + "\n\n" +
+        "Bấm OK để xác nhận, Hủy để giữ nguyên."
+      );
+      if (!userOk) return;
+    }
     setBusy(it.id);
     try {
       const statusChanged = p.status !== undefined && p.status !== it.status;

@@ -16,6 +16,7 @@ export default function Users() {
   const [err, setErr] = useState("");
 
   const changeRole = async (u: UserProfile, role: Role) => {
+      if (!window.confirm("Xác nhận đổi vai trò?\n\nĐổi thành: " + role + "\n\nBấm OK để xác nhận, Hủy để giữ nguyên.")) return;
     if (!canEdit) return;
     try {
       await updateDoc(doc(db, "users", u.id), { role });
