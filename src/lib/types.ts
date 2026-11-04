@@ -1,6 +1,6 @@
 export type Role = "admin" | "staff" | "tenant";
 export type RoomStatus = "vacant" | "occupied" | "maintenance";
-export type ContractStatus = "active" | "expired" | "cancelled";
+export type ContractStatus = "draft" | "active" | "expired" | "cancelled"; // [PHASE4A] thêm draft
 export type InvoiceStatus = "unpaid" | "paid" | "overdue";
 
 export interface UserProfile {
@@ -47,6 +47,22 @@ export interface TenantDoc {
   idNumber?: string;
   roomId?: string;
   notes?: string;
+  // [PHASE4A]
+  code?: string;
+  inquiryId?: string;
+  contractIds?: string[];
+  userId?: string;
+  address?: string;
+  status?: "active" | "inactive";
+  createdBy?: string;
+}
+
+// [PHASE4A]
+export interface ContractEvent {
+  at: number;
+  by: string;
+  action: "created_from_inquiry" | "created_manual" | "activated" | "expired" | "cancelled" | "updated";
+  note?: string;
 }
 
 export interface ContractDoc {
@@ -59,6 +75,12 @@ export interface ContractDoc {
   deposit?: number;
   status: ContractStatus;
   notes?: string;
+  // [PHASE4A]
+  code?: string;
+  inquiryId?: string;
+  paymentCycle?: "monthly" | "quarterly" | "yearly";
+  dueDay?: number;
+  timeline?: ContractEvent[];
 }
 
 export interface InvoiceItem { label: string; amount: number; }
@@ -105,6 +127,7 @@ export type InquiryDoc = {
   status: InquiryStatus;
   notes?: string | null;
   handledBy?: string | null;
+  contractId?: string | null; // [PHASE4A]
   createdAt?: any;
   updatedAt?: any;
 };
