@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { addDoc, collection, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCollection } from "../lib/useCollection";
@@ -116,6 +117,7 @@ export default function Contracts() {
             <label>{t("contractDeposit")}<NumInput min={0} value={form.deposit} onChange={(e) => setForm({ ...form, deposit: e.target.value === "" ? "" : +e.target.value })} /></label>
             <label>{t("status")}
               <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ContractStatus })}>
+                <option value="draft">Nháp</option>
                 <option value="active">{t("contractActive")}</option>
                 <option value="expired">{t("contractExpired")}</option>
                 <option value="cancelled">{t("contractCancelled")}</option>
@@ -137,10 +139,11 @@ export default function Contracts() {
           {contracts.map((c) => (
             <div className="card" key={c.id}>
               <div className="row between">
-                <strong>{tenantName(c.tenantId)} · {roomCode(c.roomId)}</strong>
+                <strong>{c.code ? c.code + " · " : ""}{tenantName(c.tenantId)} · {roomCode(c.roomId)}</strong>
                 {canEdit && (
                   <div className="row">
                     <button className="ghost" onClick={() => { setErr(""); setForm({ id: c.id, tenantId: c.tenantId, roomId: c.roomId, startDate: c.startDate, endDate: c.endDate, rent: c.rent, deposit: c.deposit ?? "", status: c.status, notes: c.notes ?? "" }); }}>{t("edit")}</button>
+                    <Link className="linkbtn" to={`/app/contracts/${c.id}/edit`}>Chi tiết</Link>
                     <button className="ghost danger" onClick={() => remove(c)}>{t("delete")}</button>
                   </div>
                 )}
@@ -149,7 +152,7 @@ export default function Contracts() {
                 <span>{c.startDate} → {c.endDate}</span>
                 <span><MoneyText value={c.rent} /> / {t("month")}</span>
                 <span className={"tag " + c.status}>
-                  {c.status === "active" ? t("contractActive") : c.status === "expired" ? t("contractExpired") : t("contractCancelled")}
+                  {c.status === "draft" ? "Nháp" : c.status === "active" ? t("contractActive") : c.status === "expired" ? t("contractExpired") : t("contractCancelled")}
                 </span>
               </div>
               {c.notes ? <small>{c.notes}</small> : null}

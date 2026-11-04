@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, Link } from "react-router-dom"; // [PHASE4A]
 import {
   collection,
   doc,
@@ -13,6 +14,7 @@ import {
 import { db } from "../lib/firebase";
 import type { InquiryDoc, InquiryStatus } from "../lib/types";
 import { useAuth } from "../lib/auth";
+import { convertInquiry, convertErrorMessage } from "../lib/convertInquiry"; // [PHASE4A]
 
 const STATUS_LABEL: Record<InquiryStatus, string> = {
   new: "Mới",
@@ -33,6 +35,7 @@ const STATUS_COLOR: Record<InquiryStatus, string> = {
 export default function Inquiries() {
   const auth = useAuth() as any;
   const uid: string | null = auth?.profile?.uid ?? auth?.user?.uid ?? null;
+  const navigate = useNavigate(); // [PHASE4A]
 
   const [list, setList] = useState<InquiryDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +72,17 @@ export default function Inquiries() {
       if (!userOk) return;
     }
     setBusy(it.id);
+    // [PHASE4A] Chốt lần đầu → tạo tenant + hợp đồng nháp qua convertInquiry
+    if (p.status === "converted" && it.status !== "converted" && !it.contractId && uid) {
+      try {
+        const r = await convertInquiry(db, { inquiryId: it.id, actorUid: uid, actorEmail: auth?.user?.email });
+        navigate(`/app/contracts/${r.contractId}/edit?fromInquiry=1`);
+      } catch (e: any) {
+        console.error("[Inquiry] convert failed:", e);
+        alert(convertErrorMessage(e));
+      } finally { setBusy(null); }
+      return;
+    }
     try {
       const statusChanged = p.status !== undefined && p.status !== it.status;
       console.log("[Inquiry] updating", {
@@ -242,6 +256,17 @@ export default function Inquiries() {
                 style={{ flex: 1, minWidth: 220, padding: "6px 8px" }}
               />
             </div>
+
+            {it.contractId && (
+              <div style={{ fontSize: 13, marginTop: 6 }}>
+                <Link to={`/app/contracts/${it.contractId}/edit`}>Xem hợp đồng →</Link>
+              </div>
+            )}
+            {it.status === "converted" && !it.contractId && (
+              <div style={{ fontSize: 13, marginTop: 6 }}>
+                <Link to={`/app/inquiries/${it.id}/convert`}>Tạo hợp đồng cho yêu cầu này →</Link>
+              </div>
+            )}
 
             {it.handledBy && (
               <div style={{ fontSize: 12, opacity: 0.6, marginTop: 6 }}>Xử lý bởi: {it.handledBy}</div>

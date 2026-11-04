@@ -16,6 +16,9 @@ import Settings from "./pages/Settings";
 import SettingsBrand from "./pages/SettingsBrand";
 import RoomExtras from "./pages/RoomExtras";
 import StaffInvites from "./pages/StaffInvites";
+import Inquiries from "./pages/Inquiries";
+import ContractEdit from "./pages/ContractEdit"; // [PHASE4A]
+import ConvertInquiry from "./pages/ConvertInquiry"; // [PHASE4A]
 
 export default function StaffShell() {
   const { user, profile, loading, logout } = useAuth();
@@ -68,6 +71,9 @@ export default function StaffShell() {
             <Route path="room-extras" element={<RoomExtras />} />
             <Route path="tenants" element={<Tenants />} />
             <Route path="contracts" element={<Contracts />} />
+            <Route path="contracts/:id/edit" element={<ContractEdit />} />
+            <Route path="inquiries" element={<Inquiries />} />
+            <Route path="inquiries/:id/convert" element={<ConvertInquiry />} />
             <Route path="invoices" element={<Invoices />} />
             {isAdmin && <Route path="users" element={<Users />} />}
             {isAdmin && <Route path="staff-invites" element={<StaffInvites />} />}
