@@ -1,61 +1,68 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "./lib/auth";
+import { useMyDocs } from "./lib/useMyDocs";
+import { useBrand } from "./brand/BrandProvider";
+import { BrandLogo } from "./brand/BrandName";
+import type { ContractDoc, InvoiceDoc, TenantDoc } from "./lib/types";
+import TenantRoom from "./pages/tenant/TenantRoom";
+import TenantInvoices from "./pages/tenant/TenantInvoices";
+import TenantContracts from "./pages/tenant/TenantContracts";
+import TenantMaintenance from "./pages/tenant/TenantMaintenance";
+import { IcDoor, IcFile, IcInbox, IcWarn } from "./components/Icons";
 
 const TABS = [
-  { key: "phong",   label: "Phòng của tôi",    icon: "🏠" },
-  { key: "hoadon",  label: "Hóa đơn",          icon: "🧾" },
-  { key: "hopdong", label: "Hợp đồng",         icon: "📄" },
-  { key: "yeucau",  label: "Yêu cầu sửa chữa", icon: "🔧" },
+  { key: "phong", label: "Phòng của tôi", Icon: IcDoor },
+  { key: "hoadon", label: "Hóa đơn", Icon: IcInbox },
+  { key: "hopdong", label: "Hợp đồng", Icon: IcFile },
+  { key: "yeucau", label: "Sửa chữa", Icon: IcWarn },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
 export default function TenantShell() {
   const { user, profile, loading, logout } = useAuth();
+  const brand = useBrand();
   const [tab, setTab] = useState<TabKey>("phong");
+  const uid = user?.uid ?? null;
+  const { data: tenants, loading: lt } = useMyDocs<TenantDoc>("tenants", uid);
+  const { data: contracts, loading: lc } = useMyDocs<ContractDoc>("contracts", uid);
+  const { data: invoices, loading: li } = useMyDocs<InvoiceDoc>("invoices", uid);
 
   if (loading) return <div className="authpage"><p>Đang tải...</p></div>;
   if (!user) return <Navigate to="/dang-nhap?next=/toi" replace />;
   if (profile?.role !== "tenant") return <Navigate to="/app" replace />;
 
+  const tenant = tenants[0];
+  const room = contracts.find((c) => c.status === "active") ?? contracts[0];
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <header style={{ background: "#fff", borderBottom: "1px solid #eee", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>Cổng cư dân</div>
-          <div style={{ fontSize: 12, color: "#888" }}>{profile.displayName || profile.email}</div>
-        </div>
+    <div className="tp">
+      <header className="tp-head">
+        <div className="brand"><BrandLogo size={28} /><div><div>{brand.name}</div><div className="ct-sub" style={{ fontWeight: 400 }}>{tenant?.name || profile.displayName || profile.email}</div></div></div>
         <button className="ghost" onClick={() => logout()}>Đăng xuất</button>
       </header>
-      <nav style={{ background: "#fff", borderBottom: "1px solid #eee", display: "flex", overflowX: "auto" }}>
-        {TABS.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{
-              padding: "12px 16px", fontSize: 14, whiteSpace: "nowrap",
-              background: "none", border: "none", cursor: "pointer",
-              borderBottom: tab === t.key ? "2px solid var(--brand)" : "2px solid transparent",
-              color: tab === t.key ? "var(--brand)" : "#666",
-              fontWeight: tab === t.key ? 600 : 400,
-            }}>
-            <span style={{ marginRight: 4 }}>{t.icon}</span>{t.label}
+      <nav className="tp-tabs" aria-label="Cổng cư dân">
+        {TABS.map(({ key, label, Icon }) => (
+          <button key={key} type="button" className={"tp-tab" + (tab === key ? " on" : "")} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(key)}>
+            <Icon /> {label}
           </button>
         ))}
       </nav>
-      <main style={{ padding: 16, maxWidth: 800, margin: "0 auto" }}>
-        {tab === "phong"   && <Placeholder title="Phòng của tôi" hint="Thông tin phòng & hợp đồng đang thuê." />}
-        {tab === "hoadon"  && <Placeholder title="Hóa đơn" hint="Danh sách hóa đơn & nút 'Tôi đã chuyển khoản'." />}
-        {tab === "hopdong" && <Placeholder title="Hợp đồng" hint="Hợp đồng & thời hạn thuê." />}
-        {tab === "yeucau"  && <Placeholder title="Yêu cầu sửa chữa" hint="Form gửi & lịch sử xử lý." />}
+      <main className="tp-main ct">
+        {lt ? <div className="ct-card ct-skel" /> : !tenant ? (
+          <div className="ct-empty">
+            <strong>Tài khoản của bạn chưa được liên kết với hồ sơ khách thuê.</strong>
+            <span>Hãy gửi email đăng nhập <b>{profile.email || user.email}</b> cho chủ trọ để được liên kết.</span>
+          </div>
+        ) : (
+          <>
+            {tab === "phong" && <TenantRoom contracts={contracts} />}
+            {tab === "hoadon" && <TenantInvoices invoices={invoices} loading={li} />}
+            {tab === "hopdong" && <TenantContracts contracts={contracts} loading={lc} />}
+            {tab === "yeucau" && <TenantMaintenance uid={user.uid} tenantId={tenant.id} roomId={room?.roomId} />}
+          </>
+        )}
       </main>
-    </div>
-  );
-}
-
-function Placeholder({ title, hint }: { title: string; hint: string }) {
-  return (
-    <div style={{ background: "#fff", borderRadius: 8, padding: 24, textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,.06)" }}>
-      <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{title}</div>
-      <div style={{ fontSize: 14, color: "#666" }}>{hint}</div>
     </div>
   );
 }

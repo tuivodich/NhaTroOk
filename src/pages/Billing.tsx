@@ -95,6 +95,7 @@ export default function Billing() {
           const snap = await tx.get(invRef);               // đọc trước khi ghi
           if (snap.exists()) return false;                 // chống tạo trùng
           tx.set(invRef, {
+            ...(r.tenant?.userId ? { userId: r.tenant.userId } : {}), // [PHASE4C]
             roomId: r.c.roomId, tenantId: r.c.tenantId, contractId: r.c.id, month,
             items: b.items, total: b.total, status: "unpaid",
             dueDate: dueDateFor(month, r.c.dueDay),

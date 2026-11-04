@@ -75,6 +75,7 @@ export interface ContractDoc {
   deposit?: number;
   status: ContractStatus;
   notes?: string;
+  userId?: string; // [PHASE4C] uid tài khoản của khách (denormalize từ tenant.userId)
   // [PHASE4A]
   code?: string;
   inquiryId?: string;
@@ -89,6 +90,7 @@ export interface InvoiceDoc {
   roomId: string;
   tenantId?: string;
   // [PHASE4B]
+  userId?: string; // [PHASE4C]
   contractId?: string;
   meter?: { electricPrev: number; electricCurr: number; waterPrev: number; waterCurr: number };
   createdAt?: unknown;
@@ -151,4 +153,20 @@ export interface MeterReadingDoc {
   electric: number;
   water: number;
   createdAt?: unknown;
+}
+
+
+// ===== [PHASE4C] Yêu cầu sửa chữa =====
+export type MaintenanceStatus = "new" | "in_progress" | "done";
+export interface MaintenanceRequest {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  roomId?: string;
+  title: string;
+  description?: string;
+  status: MaintenanceStatus;
+  staffNote?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }

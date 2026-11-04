@@ -392,3 +392,15 @@ input, select, textarea { border-radius: var(--radius-sm); border-color: #9FD3CB
 .bl-fees { display: flex; flex-direction: column; gap: 8px; }
 .bl-fee { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
 @media (max-width: 560px) { .bl-meters { grid-template-columns: 1fr; } .bl-fee { grid-template-columns: 1fr; } }
+
+/* ===== Cổng cư dân (Phase 4C) ===== */
+.tp { min-height: 100vh; background: var(--bg); }
+.tp-head { background: #fff; border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tp-head .brand { align-items: center; gap: 10px; min-width: 0; }
+.tp-tabs { background: #fff; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; padding: 0 8px; position: sticky; top: 0; z-index: 5; }
+.tp-tab { background: none; color: var(--muted); border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 12px 14px; min-height: 48px; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.tp-tab:hover { color: var(--text); }
+.tp-tab.on { color: var(--brand); border-bottom-color: var(--brand); }
+.tp-main { max-width: 760px; margin: 0 auto; padding: 16px; }
+.tp-stack { display: flex; flex-direction: column; gap: 14px; }
+.tn-link { border-top: 1px dashed var(--border); padding-top: 10px; }

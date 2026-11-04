@@ -17,6 +17,7 @@ import SettingsBrand from "./pages/SettingsBrand";
 import RoomExtras from "./pages/RoomExtras";
 import StaffInvites from "./pages/StaffInvites";
 import Billing from "./pages/Billing"; // [PHASE4B]
+import Maintenance from "./pages/Maintenance"; // [PHASE4C]
 import SettingsBilling from "./pages/SettingsBilling"; // [PHASE4B]
 import Inquiries from "./pages/Inquiries";
 import ContractEdit from "./pages/ContractEdit"; // [PHASE4A]
@@ -49,6 +50,7 @@ export default function StaffShell() {
           <NavLink to="/app/tenants">{t("tenants")}</NavLink>
           <NavLink to="/app/contracts">{t("contracts")}</NavLink>
         <NavLink to="/app/inquiries">Yêu cầu thuê</NavLink>
+          <NavLink to="/app/maintenance">Sửa chữa</NavLink>
           <NavLink to="/app/billing">Lập hóa đơn</NavLink>
           <NavLink to="/app/invoices">{t("invoices")}</NavLink>
           {isAdmin && <NavLink to="/app/users">{t("users")}</NavLink>}
@@ -77,6 +79,7 @@ export default function StaffShell() {
             <Route path="contracts/:id/edit" element={<ContractEdit />} />
             <Route path="inquiries" element={<Inquiries />} />
             <Route path="inquiries/:id/convert" element={<ConvertInquiry />} />
+            <Route path="maintenance" element={<Maintenance />} />
             <Route path="billing" element={<Billing />} />
             <Route path="invoices" element={<Invoices />} />
             {isAdmin && <Route path="users" element={<Users />} />}

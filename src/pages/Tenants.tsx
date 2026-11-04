@@ -1,12 +1,12 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { addDoc, collection, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, deleteField, doc, getDocs, query, updateDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCollection } from "../lib/useCollection";
 import { useAudit } from "../lib/audit";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
-import { isAdminRole, type ContractDoc, type RoomDoc, type TenantDoc } from "../lib/types";
+import { isAdminRole, type ContractDoc, type RoomDoc, type TenantDoc, type UserProfile } from "../lib/types";
 import { IcDoor, IcFile, IcMail, IcPhone, IcPlus } from "../components/Icons";
 
 interface F { id?: string; name: string; phone: string; email: string; idNumber: string; roomId: string; notes: string; }
@@ -22,6 +22,8 @@ export default function Tenants() {
   const { data: tenants, loading } = useCollection<TenantDoc>("tenants");
   const { data: rooms } = useCollection<RoomDoc>("rooms");
   const { data: contracts } = useCollection<ContractDoc>("contracts");
+  const { data: users } = useCollection<UserProfile>("users");
+  const [linkFor, setLinkFor] = useState<string | null>(null);
   const [form, setForm] = useState<F | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -90,6 +92,32 @@ export default function Tenants() {
       console.error("tenant save failed", ex);
       setErr("Lỗi: " + ((ex as Error)?.message ?? String(ex)));
     } finally { setBusy(false); }
+  };
+
+  // [PHASE4C] Liên kết / gỡ liên kết tài khoản đăng nhập với hồ sơ khách.
+  // Ghi userId vào tenant + toàn bộ hợp đồng + hóa đơn của khách để rules cho khách đọc đúng dữ liệu của mình.
+  const setLink = async (x: TenantDoc, uid: string | null) => {
+    const who = uid ? users.find((u) => u.id === uid || u.uid === uid)?.email ?? uid : "";
+    if (!window.confirm(uid ? `Liên kết hồ sơ "${x.name}" với tài khoản ${who}?\n\nNgười này sẽ xem được hợp đồng và hóa đơn của khách ${x.name}.` : `Gỡ liên kết tài khoản của "${x.name}"?`)) return;
+    setErr("");
+    try {
+      const val = uid ?? deleteField();
+      const batch = writeBatch(db);
+      batch.update(doc(db, "tenants", x.id), { userId: val });
+      const [cs, is] = await Promise.all([
+        getDocs(query(collection(db, "contracts"), where("tenantId", "==", x.id))),
+        getDocs(query(collection(db, "invoices"), where("tenantId", "==", x.id))),
+      ]);
+      cs.docs.forEach((d) => batch.update(d.ref, { userId: val }));
+      is.docs.forEach((d) => batch.update(d.ref, { userId: val }));
+      if (cs.size + is.size + 1 > 500) throw new Error("Quá nhiều bản ghi để liên kết một lần");
+      await batch.commit();
+      audit(uid ? "tenant.link" : "tenant.unlink", (uid ? "Lien ket " : "Go lien ket ") + x.name, { type: "tenant", id: x.id });
+      setLinkFor(null);
+    } catch (ex) {
+      console.error("link tenant failed", ex);
+      setErr("Lỗi liên kết: " + ((ex as Error)?.message ?? String(ex)));
+    }
   };
 
   const remove = async (x: TenantDoc) => {
@@ -228,6 +256,28 @@ export default function Tenants() {
                   </div>
                 )}
                 {x.notes ? <p className="ct-notes">{x.notes}</p> : null}
+
+                {canEdit && (
+                  <div className="tn-link">
+                    {x.userId ? (
+                      <div className="row between wrap">
+                        <span className="ct-sub">Tài khoản: <b>{users.find((u) => u.id === x.userId || u.uid === x.userId)?.email ?? x.userId}</b></span>
+                        <button className="ghost" onClick={() => setLink(x, null)}>Gỡ liên kết</button>
+                      </div>
+                    ) : linkFor === x.id ? (
+                      <label className="iq-field">Chọn tài khoản khách (vai trò Khách thuê)
+                        <select defaultValue="" onChange={(e) => e.target.value && setLink(x, e.target.value)}>
+                          <option value="">— chọn —</option>
+                          {users.filter((u) => u.role === "tenant")
+                            .sort((a, b) => Number((b.email ?? "").toLowerCase() === (x.email ?? "").toLowerCase()) - Number((a.email ?? "").toLowerCase() === (x.email ?? "").toLowerCase()))
+                            .map((u) => <option key={u.id} value={u.uid ?? u.id}>{u.email ?? u.id}{x.email && (u.email ?? "").toLowerCase() === x.email.toLowerCase() ? " (trùng email)" : ""}</option>)}
+                        </select>
+                      </label>
+                    ) : (
+                      <button className="ghost" onClick={() => setLinkFor(x.id)}>Liên kết tài khoản đăng nhập</button>
+                    )}
+                  </div>
+                )}
 
                 {canEdit && (
                   <footer className="ct-actions">

@@ -71,7 +71,9 @@ export async function convertInquiry(
       });
     }
 
+    const tenantUserId: string | undefined = tenantSnap.exists() ? (tenantSnap.data() as any).userId : undefined;
     tx.set(contractRef, {
+      ...(tenantUserId ? { userId: tenantUserId } : {}), // [PHASE4C]
       code: contractCode,
       tenantId,
       roomId: inq.roomId,

@@ -20,7 +20,7 @@ export default function Landing() {
         <div className="row">
           <button className="ghost" onClick={() => setLang(lang === "vi" ? "en" : "vi")}>{lang === "vi" ? "EN" : "VI"}</button>
           {user ? (
-            <Link className="linkbtn primary" to={profile?.role === "tenant" ? "/" : "/app"}>{t("goToAdmin")}</Link>
+            <Link className="linkbtn primary" to={profile?.role === "tenant" ? "/toi" : "/app"}>{t("goToAdmin")}</Link>
           ) : (
             <Link className="linkbtn primary" to="/dang-nhap">{t("login")}</Link>
           )}

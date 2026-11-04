@@ -94,6 +94,8 @@ export default function Invoices() {
         await updateDoc(doc(db, "invoices", form.id), payload);
         audit("invoice.update", "Sua hoa don " + form.month, { type: "invoice", id: form.id });
       } else {
+        const uid = tenants.find((x) => x.id === form.tenantId)?.userId;
+        if (uid) payload.userId = uid; // [PHASE4C]
         const ref = await addDoc(collection(db, "invoices"), payload);
         audit("invoice.create", "Them hoa don " + form.month, { type: "invoice", id: ref.id });
       }

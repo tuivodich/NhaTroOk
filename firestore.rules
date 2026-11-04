@@ -39,15 +39,29 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/rooms/$(request.resource.data.roomId)).data.status == 'vacant';
       allow read, update, delete: if isStaff();
     }
-    // [PHASE4A]
+    // [PHASE4C] Khách chỉ đọc được dữ liệu của chính mình (userId == uid), do staff liên kết tài khoản.
     match /tenants/{id} {
-      allow read: if isSignedIn();
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create, update: if isStaff();
       allow delete: if isAdmin();
     }
     match /contracts/{id} {
-      allow read: if isSignedIn();
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+    // [PHASE4C] Yêu cầu sửa chữa: khách tạo/đọc của mình, staff xử lý
+    match /maintenanceRequests/{id} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['userId','tenantId','roomId','title','description','status','createdAt','updatedAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'new'
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 3
+        && request.resource.data.title.size() <= 120
+        && (!('description' in request.resource.data) || (request.resource.data.description is string && request.resource.data.description.size() <= 1000));
+      allow update: if isStaff();
       allow delete: if isAdmin();
     }
     match /_counters/{name} {
@@ -55,7 +69,7 @@ service cloud.firestore {
     }
     // [PHASE4B] Hóa đơn: staff được tạo (lập hóa đơn tháng); sửa/xóa chỉ admin
     match /invoices/{id} {
-      allow read: if isSignedIn();
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isStaff();
       allow update, delete: if isAdmin();
     }

@@ -121,6 +121,8 @@ export default function Contracts() {
         await updateDoc(doc(db, "contracts", form.id), payload);
         audit("contract.update", "Sua hop dong", { type: "contract", id: form.id });
       } else {
+        const uid = tenants.find((x) => x.id === form.tenantId)?.userId;
+        if (uid) payload.userId = uid; // [PHASE4C]
         const ref = await addDoc(collection(db, "contracts"), payload);
         audit("contract.create", "Them hop dong", { type: "contract", id: ref.id });
       }
