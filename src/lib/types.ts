@@ -88,6 +88,10 @@ export interface InvoiceDoc {
   id: string;
   roomId: string;
   tenantId?: string;
+  // [PHASE4B]
+  contractId?: string;
+  meter?: { electricPrev: number; electricCurr: number; waterPrev: number; waterCurr: number };
+  createdAt?: unknown;
   month: string;
   items?: InvoiceItem[];
   total: number;
@@ -131,3 +135,20 @@ export type InquiryDoc = {
   createdAt?: any;
   updatedAt?: any;
 };
+
+
+// ===== [PHASE4B] Đơn giá + chỉ số đồng hồ =====
+export interface FixedFee { label: string; amount: number; }
+export interface BillingSettings {
+  electricRate: number; // đ / kWh
+  waterRate: number;    // đ / m³
+  fixedFees: FixedFee[]; // phí cố định hàng tháng mỗi phòng (rác, internet…)
+}
+export interface MeterReadingDoc {
+  id: string;          // `${roomId}_${YYYY-MM}`
+  roomId: string;
+  month: string;       // YYYY-MM
+  electric: number;
+  water: number;
+  createdAt?: unknown;
+}

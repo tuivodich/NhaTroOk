@@ -61,6 +61,13 @@ export default function Settings() {
           <Link className="ct-btn" to="/app/settings/brand">Chỉnh thương hiệu</Link>
         </div>
       )}
+      {isAdminRole(profile?.role) && (
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Đơn giá điện, nước &amp; phí</h3>
+          <p className="info" style={{ marginTop: 0 }}>Giá điện, giá nước và các khoản phí cố định dùng khi lập hóa đơn tháng.</p>
+          <Link className="ct-btn" to="/app/settings/billing">Chỉnh đơn giá</Link>
+        </div>
+      )}
     </section>
   );
 }

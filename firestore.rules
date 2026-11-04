@@ -53,8 +53,19 @@ service cloud.firestore {
     match /_counters/{name} {
       allow read, write: if isStaff();
     }
+    // [PHASE4B] Hóa đơn: staff được tạo (lập hóa đơn tháng); sửa/xóa chỉ admin
     match /invoices/{id} {
       allow read: if isSignedIn();
+      allow create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+    match /meterReadings/{id} {
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+    match /settings/{id} {
+      allow read: if isStaff();
       allow write: if isAdmin();
     }
     match /auditLogs/{id} {

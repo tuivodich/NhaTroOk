@@ -376,3 +376,19 @@ input, select, textarea { border-radius: var(--radius-sm); border-color: #9FD3CB
 .au-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 @media (max-width: 640px) { .au-item { grid-template-columns: 1fr; gap: 4px; } }
 @media (prefers-reduced-motion: reduce) { .rx-track, .rx-track::after { transition: none; } }
+
+/* ===== Billing (Phase 4B) ===== */
+.bl-month { flex-direction: column; min-width: 180px; }
+.bl-month input { min-height: 44px; }
+.bl-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.bl-meter { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bl-k { font-weight: 600; font-size: 13px; color: var(--text); }
+.bl-in input { min-height: 44px; width: 100%; font-variant-numeric: tabular-nums; }
+.bl-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.bl-items li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dashed var(--border); padding-bottom: 4px; }
+.bl-items li span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.bl-total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.bl-total b { font-family: var(--font-h); font-size: 20px; color: var(--brand); }
+.bl-fees { display: flex; flex-direction: column; gap: 8px; }
+.bl-fee { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+@media (max-width: 560px) { .bl-meters { grid-template-columns: 1fr; } .bl-fee { grid-template-columns: 1fr; } }
