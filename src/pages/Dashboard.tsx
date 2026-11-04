@@ -69,11 +69,11 @@ export default function Dashboard() {
       </div>
 
       <div className="ct-stats">
+        <div className="ct-stat"><span className="ct-stat-n ct-num"><MoneyText value={s.monthly} /></span><span className="ct-stat-l">Doanh thu thuê / tháng</span></div>
         <div className="ct-stat"><span className="ct-stat-n">{lp ? "…" : properties.length}</span><span className="ct-stat-l">{t("totalProperties")}</span></div>
         <div className="ct-stat"><span className="ct-stat-n">{lr ? "…" : rooms.length}</span><span className="ct-stat-l">{t("totalRooms")}</span></div>
         <div className="ct-stat"><span className="ct-stat-n">{s.vacant}</span><span className="ct-stat-l">{t("vacantRooms")}</span></div>
         <div className="ct-stat"><span className="ct-stat-n">{s.active}</span><span className="ct-stat-l">Hợp đồng hiệu lực</span></div>
-        <div className="ct-stat"><span className="ct-stat-n ct-num"><MoneyText value={s.monthly} /></span><span className="ct-stat-l">Doanh thu thuê / tháng</span></div>
       </div>
 
       <div className="dash-grid">

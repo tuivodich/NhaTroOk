@@ -1,13 +1,18 @@
 :root {
-  --brand: #2563eb;
-  --bg: #f6f7fb;
+  /* Theme B — Teal tin cậy (ui-ux-pro-max: Real Estate/Property) */
+  --brand: #0F766E;
+  --bg: #F0FDFA;
   --card: #ffffff;
-  --text: #111827;
-  --muted: #6b7280;
-  --border: #e5e7eb;
+  --text: #134E4A;
+  --muted: #475569;
+  --border: #CDEFE9;
   --danger: #dc2626;
-  --radius: 12px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 14px rgba(16, 24, 40, 0.06);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --shadow: 0 1px 2px rgba(19, 78, 74, 0.05), 0 6px 18px rgba(19, 78, 74, 0.07);
+  --side: #134E4A;
+  --font-h: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-b: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
@@ -238,3 +243,90 @@ button.linkbtn { background: transparent; color: var(--brand); padding: 0; }
 .tn-contracts ul { list-style:none; margin:6px 0; padding:0; display:flex; flex-direction:column; gap:2px; }
 .tn-contracts li a { display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:44px; padding:6px 10px; border-radius:8px; text-decoration:none; color:var(--text); background:#f9fafb; }
 .tn-contracts li a:hover { background:#f3f4f6; }
+
+
+/* ================= Theme B — Teal tin cậy, bento mềm ================= */
+body { font-family: var(--font-b); line-height: 1.55; }
+h1, h2, h3, .brand { font-family: var(--font-h); letter-spacing: -0.01em; }
+h2 { font-weight: 700; }
+
+.app-shell { grid-template-columns: 264px minmax(0, 1fr); }
+.sidebar { background: var(--side); color: #fff; border: 0; border-radius: var(--radius); margin: 12px 0 12px 12px;
+  padding: 18px 12px; position: sticky; top: 12px; height: calc(100vh - 24px); overflow-y: auto; }
+.sidebar .brand { color: #fff; padding: 0 8px; }
+.sidebar .brand svg rect { fill: #fff; }
+.sidebar .brand svg path { fill: var(--brand); opacity: 1; }
+.sidebar nav a { color: #CFE9E5; border-radius: var(--radius-sm); transition: background-color .15s, color .15s; }
+.sidebar nav a:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+.sidebar nav a.active { background: rgba(255, 255, 255, .16); color: #fff; font-weight: 600; }
+.sidebar nav a:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.topbar { background: transparent; border-bottom: 0; padding: 16px 24px 0; }
+
+.card, .stat { border-radius: var(--radius); border-color: var(--border); }
+button, .linkbtn { border-radius: 999px; font-weight: 600; min-height: 40px; transition: background-color .15s, border-color .15s, filter .15s; }
+button:not(.ghost):not(.linkbtn):hover, .linkbtn.primary:hover { filter: brightness(.93); }
+button.ghost { border-color: #9FD3CB; color: var(--text); }
+button.ghost:hover { background: #ECFAF7; }
+button.ghost.danger { color: #b91c1c; border-color: #fecaca; }
+button.ghost.danger:hover { background: #fef2f2; }
+button.linkbtn { min-height: 0; border-radius: 0; font-weight: 500; }
+input, select, textarea { border-radius: var(--radius-sm); border-color: #9FD3CB; }
+:where(button, a, input, select, textarea):focus-visible { outline: 3px solid color-mix(in oklab, var(--brand) 55%, transparent); outline-offset: 2px; }
+
+.tag { font-weight: 600; }
+.tag.vacant, .tag.paid, .tag.active { background: #CCFBF1; color: #115E59; }
+.tag.occupied { background: #E0F2FE; color: #075985; }
+.tag.maintenance { background: #FEF3C7; color: #78350F; }
+.tag.unpaid { background: #FEF3C7; color: #78350F; }
+.error { border-radius: var(--radius-sm); }
+
+.landing-header, .public-header { background: #fff; border-bottom: 1px solid var(--border); }
+.landing-hero h1 { font-family: var(--font-h); }
+.authpage { background: var(--bg); }
+.authcard { border-radius: var(--radius); }
+
+.public-shell { background: var(--bg); }
+.public-brand { color: var(--text); font-family: var(--font-h); }
+.public-login { color: var(--brand); font-weight: 600; }
+.public-h1 { color: var(--text); font-family: var(--font-h); }
+.public-sub, .public-loading, .public-empty, .room-card-addr, .room-detail-addr { color: var(--muted); }
+.room-card { border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); }
+.room-card:hover { box-shadow: 0 2px 4px rgba(19,78,74,.06), 0 12px 28px rgba(19,78,74,.12); }
+.room-card-title { color: var(--text); font-family: var(--font-h); }
+.room-card-meta { color: var(--muted); }
+.room-card-price { color: var(--brand); font-family: var(--font-h); }
+.room-gallery-main { border-radius: var(--radius); }
+.room-gallery-thumb { border-radius: 10px; }
+.room-gallery-thumb.active, .room-gallery-thumb:hover { outline-color: var(--brand); }
+.room-detail-body { border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.room-detail-meta, .room-detail-cta { border-color: var(--border); }
+.room-detail-meta .label { color: var(--muted); }
+
+/* Dashboard bento: ô doanh thu nổi bật */
+.dash .ct-stats { grid-template-columns: 2fr repeat(4, minmax(0, 1fr)); }
+.dash .ct-stat:first-child { background: var(--brand); border-color: var(--brand); color: #fff; }
+.dash .ct-stat:first-child .ct-stat-l { color: #D7F3EF; }
+.dash .ct-stat:first-child .ct-stat-n { font-size: 28px; }
+.ct-stat-n { font-family: var(--font-h); }
+.ct-stat { border-radius: var(--radius); }
+.ct-chip { border-color: #9FD3CB; }
+.ct-card.warn { border-left-color: #f59e0b; }
+.ct .ct-btn, .ct .linkbtn { border-radius: 999px; }
+@media (max-width: 960px) {
+  .dash .ct-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dash .ct-stat:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; margin: 0; border-radius: 0; flex-direction: row; align-items: center; overflow-x: auto; padding: 10px 12px; }
+  .sidebar nav { flex-direction: row; }
+  .sidebar nav a { white-space: nowrap; }
+}
+
+/* Đăng nhập: nhãn trên, ô nhập dưới, đầy chiều ngang */
+.authcard h1 { text-align: center; }
+.authcard form { display: flex; flex-direction: column; gap: 12px; }
+.authcard form label { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.authcard form input { width: 100%; min-height: 44px; }
+.authcard form button[type="submit"] { width: 100%; min-height: 44px; }
+.authcard .block { min-height: 44px; }

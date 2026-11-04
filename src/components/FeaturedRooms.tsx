@@ -27,7 +27,7 @@ export default function FeaturedRooms() {
     <section style={{ padding: "48px 16px", maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 24 }}>
         <h2 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Phòng nổi bật</h2>
-        <Link to="/phong" style={{ color: "#2563eb", fontSize: 14, textDecoration: "none" }}>
+        <Link to="/phong" style={{ color: "var(--brand)", fontSize: 14, textDecoration: "none" }}>
           Xem tất cả →
         </Link>
       </div>

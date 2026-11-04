@@ -19,7 +19,7 @@ export default function TenantShell() {
   if (profile?.role !== "tenant") return <Navigate to="/app" replace />;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8f8f8" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <header style={{ background: "#fff", borderBottom: "1px solid #eee", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 600 }}>Cổng cư dân</div>
@@ -33,8 +33,8 @@ export default function TenantShell() {
             style={{
               padding: "12px 16px", fontSize: 14, whiteSpace: "nowrap",
               background: "none", border: "none", cursor: "pointer",
-              borderBottom: tab === t.key ? "2px solid #2563eb" : "2px solid transparent",
-              color: tab === t.key ? "#2563eb" : "#666",
+              borderBottom: tab === t.key ? "2px solid var(--brand)" : "2px solid transparent",
+              color: tab === t.key ? "var(--brand)" : "#666",
               fontWeight: tab === t.key ? 600 : 400,
             }}>
             <span style={{ marginRight: 4 }}>{t.icon}</span>{t.label}

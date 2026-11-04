@@ -14,7 +14,7 @@ interface BrandContextValue extends BrandConfig {
 const DEFAULTS: BrandConfig = {
   name: "Nha Tro",
   tagline: "Quản lý nhà trọ gọn gàng, hiện đại",
-  brandColor: "#2563eb",
+  brandColor: "#0F766E", // Theme B: teal tin cậy
 };
 
 const KEY = "brand-config-v1";
@@ -25,7 +25,10 @@ function readStore(): BrandConfig {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const stored = { ...DEFAULTS, ...JSON.parse(raw) } as BrandConfig;
+    // Màu xanh dương mặc định cũ → chuyển sang teal của Theme B (màu tuỳ chỉnh khác giữ nguyên)
+    if (String(stored.brandColor).toLowerCase() === "#2563eb") stored.brandColor = DEFAULTS.brandColor;
+    return stored;
   } catch { return DEFAULTS; }
 }
 
