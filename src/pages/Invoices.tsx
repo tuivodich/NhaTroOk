@@ -5,7 +5,9 @@ import { useCollection } from "../lib/useCollection";
 import { useAudit } from "../lib/audit";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
-import { isAdminRole, type InvoiceDoc, type InvoiceStatus, type PaymentReport, type RoomDoc, type TenantDoc } from "../lib/types";
+import { isAdminRole, type InvoiceDoc, type InvoiceStatus, type PaymentReport, type ReminderLog, type RoomDoc, type TenantDoc } from "../lib/types";
+import ReminderPanel from "../components/ReminderPanel";
+import { CHANNEL_LABEL, lastReminderByRoom } from "../lib/reminder";
 import MoneyText from "../components/MoneyText";
 import NumInput from "../components/NumInput";
 import { IcCal, IcDoor, IcPlus, IcUser, IcWarn } from "../components/Icons";
@@ -40,6 +42,9 @@ export default function Invoices() {
   const { data: rooms } = useCollection<RoomDoc>("rooms");
   const { data: tenants } = useCollection<TenantDoc>("tenants");
   const { data: reports } = useCollection<PaymentReport>("paymentReports");
+  const { data: reminderLogs } = useCollection<ReminderLog>("reminderLogs");
+  const [remindId, setRemindId] = useState<string | null>(null);
+  const lastRemind = useMemo(() => lastReminderByRoom(reminderLogs), [reminderLogs]);
   const [form, setForm] = useState<F | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -289,8 +294,20 @@ export default function Invoices() {
                   <div className="ct-alert bad" role="note"><IcWarn />Quá hạn từ {fmtDate(x.dueDate)}</div>
                 )}
                 {x.notes ? <p className="ct-notes">{x.notes}</p> : null}
+                {st !== "paid" && lastRemind.get(x.roomId) && (
+                  <div className="ct-sub">Đã nhắc {new Date(lastRemind.get(x.roomId)!.seconds * 1000).toLocaleDateString("vi-VN")} ({CHANNEL_LABEL[lastRemind.get(x.roomId)!.channel] ?? lastRemind.get(x.roomId)!.channel})</div>
+                )}
+                {remindId === x.id && (
+                  <ReminderPanel tenantName={tenants.find((tn) => tn.id === x.tenantId)?.name} tenantId={x.tenantId}
+                    phone={tenants.find((tn) => tn.id === x.tenantId)?.phone} email={tenants.find((tn) => tn.id === x.tenantId)?.email}
+                    roomId={x.roomId} roomCode={roomCode(x.roomId)} items={[{ invoiceId: x.id, month: x.month, total: x.total, dueDate: x.dueDate }]} onClose={() => setRemindId(null)} />
+                )}
+                {st !== "paid" && !canEdit && (
+                  <footer className="ct-actions"><button onClick={() => setRemindId(remindId === x.id ? null : x.id)}>Nhắc nợ</button></footer>
+                )}
                 {canEdit && (
                   <footer className="ct-actions">
+                    {st !== "paid" && <button className="ghost" onClick={() => setRemindId(remindId === x.id ? null : x.id)}>Nhắc nợ</button>}
                     {x.status !== "paid" && <button onClick={() => markPaid(x)}>{t("markPaid")}</button>}
                     <button className="ghost" onClick={() => { setErr(""); setForm({ id: x.id, roomId: x.roomId, tenantId: x.tenantId ?? "", month: x.month, total: x.total, status: x.status, dueDate: x.dueDate ?? "", notes: x.notes ?? "" }); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{t("edit")}</button>
                     <button className="ghost danger" onClick={() => remove(x)}>{t("delete")}</button>

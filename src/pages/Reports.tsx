@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCollection } from "../lib/useCollection";
-import type { InvoiceDoc, PropertyDoc, RoomDoc, TenantDoc } from "../lib/types";
+import type { InvoiceDoc, PropertyDoc, ReminderLog, RoomDoc, TenantDoc } from "../lib/types";
 import { aging, effectiveStatus, monthlySeries, occupancy, toCsv, yearsOf } from "../lib/reports";
 import MoneyText from "../components/MoneyText";
 import RevenueChart from "../components/RevenueChart";
+import ReminderPanel from "../components/ReminderPanel";
+import { CHANNEL_LABEL, lastReminderByRoom } from "../lib/reminder";
 
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const fmtDate = (d?: string) => (d ? d.split("-").reverse().join("/") : "");
@@ -15,6 +17,8 @@ export default function Reports() {
   const { data: rooms } = useCollection<RoomDoc>("rooms");
   const { data: properties } = useCollection<PropertyDoc>("properties");
   const { data: tenants } = useCollection<TenantDoc>("tenants");
+  const { data: reminderLogs } = useCollection<ReminderLog>("reminderLogs");
+  const [remindRoom, setRemindRoom] = useState<string | null>(null);
   const today = localToday();
   const thisYear = Number(today.slice(0, 4));
   const [year, setYear] = useState(thisYear);
@@ -22,6 +26,7 @@ export default function Reports() {
   const years = useMemo(() => yearsOf(invoices, thisYear), [invoices, thisYear]);
   const series = useMemo(() => monthlySeries(invoices, year), [invoices, year]);
   const debt = useMemo(() => aging(invoices, today), [invoices, today]);
+  const lastRemind = useMemo(() => lastReminderByRoom(reminderLogs), [reminderLogs]);
   const occ = useMemo(() => occupancy(rooms, properties), [rooms, properties]);
 
   const billed = series.reduce((s, r) => s + r.billed, 0);
@@ -87,15 +92,25 @@ export default function Reports() {
         </div>
         {debt.rows.length > 0 && (
           <ul className="dash-list" style={{ marginTop: 12 }}>
-            {debt.rows.slice(0, 10).map((r) => (
-              <li key={r.roomId}>
-                <Link to="/app/invoices">
-                  <span className="dash-li-main">Phòng {roomCode(r.roomId)}{tenantName(r.tenantId) ? ` · ${tenantName(r.tenantId)}` : ""}</span>
-                  <span className="ct-sub">{r.count} hóa đơn{r.oldestDays > 0 ? ` · trễ ${r.oldestDays} ngày` : ""}</span>
-                  <b className="ct-num"><MoneyText value={r.total} /></b>
-                </Link>
-              </li>
-            ))}
+            {debt.rows.slice(0, 10).map((r) => {
+              const tenant = tenants.find((t) => t.id === r.tenantId);
+              const last = lastRemind.get(r.roomId);
+              const open = remindRoom === r.roomId;
+              const items = invoices.filter((i) => i.roomId === r.roomId && i.status !== "paid").map((i) => ({ invoiceId: i.id, month: i.month, total: i.total, dueDate: i.dueDate }));
+              return (
+                <li key={r.roomId} className="rp-debt">
+                  <div className="rp-debt-row">
+                    <Link to="/app/invoices" className="rp-debt-main">
+                      <span className="dash-li-main">Phòng {roomCode(r.roomId)}{tenantName(r.tenantId) ? ` · ${tenantName(r.tenantId)}` : ""}</span>
+                      <span className="ct-sub">{r.count} hóa đơn{r.oldestDays > 0 ? ` · trễ ${r.oldestDays} ngày` : ""}{last ? ` · đã nhắc ${new Date(last.seconds * 1000).toLocaleDateString("vi-VN")} (${CHANNEL_LABEL[last.channel] ?? last.channel})` : ""}</span>
+                      <b className="ct-num"><MoneyText value={r.total} /></b>
+                    </Link>
+                    <button className={open ? "ghost" : ""} aria-expanded={open} onClick={() => setRemindRoom(open ? null : r.roomId)}>{open ? "Đóng" : "Nhắc nợ"}</button>
+                  </div>
+                  {open && <ReminderPanel tenantName={tenant?.name} tenantId={r.tenantId} phone={tenant?.phone} email={tenant?.email} roomId={r.roomId} roomCode={roomCode(r.roomId)} items={items} onClose={() => setRemindRoom(null)} />}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

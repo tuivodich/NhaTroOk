@@ -438,3 +438,11 @@ input, select, textarea { border-radius: var(--radius-sm); border-color: #9FD3CB
 .rp-occ > div { display: flex; flex-direction: column; gap: 6px; }
 .rp-occ-all { padding-bottom: 14px; border-bottom: 1px dashed var(--border); }
 @media (max-width: 640px) { .rp-toggle { margin-left: 0; } .rp-tip { white-space: normal; max-width: 220px; } }
+
+/* ===== Nhắc nợ (Phase 5) ===== */
+.rm-panel { background: #F7FDFC; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-top: 8px; }
+.rm-panel textarea { width: 100%; font-size: 14px; line-height: 1.5; }
+.rp-debt { flex-direction: column; align-items: stretch; }
+.rp-debt-row { display: flex; gap: 10px; align-items: center; }
+.rp-debt-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; text-decoration: none; color: var(--text); min-height: 44px; padding: 8px 10px; border-radius: 8px; }
+.rp-debt-main:hover { background: #f3f4f6; }

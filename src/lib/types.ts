@@ -189,3 +189,17 @@ export interface PaymentReport {
   createdAt?: any;
   updatedAt?: any;
 }
+
+
+// ===== [PHASE5] Nhắc nợ =====
+export interface ReminderLog {
+  id: string;
+  tenantId?: string;
+  roomId: string;
+  invoiceIds: string[];
+  channel: "copy" | "zalo" | "sms" | "email" | "email-auto";
+  by?: string;
+  day: string;          // YYYY-MM-DD (giờ Việt Nam khi do script ghi)
+  at?: any;
+}
+export interface ReminderSettings { enabled: boolean; daysBefore: number; }

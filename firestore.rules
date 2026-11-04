@@ -117,6 +117,21 @@ service cloud.firestore {
             && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 300)));
       allow delete: if isAdmin();
     }
+    // [PHASE5] Nhật ký nhắc nợ: staff ghi mỗi lần nhắc; script email tự động ghi bằng Admin SDK (không qua rules)
+    match /reminderLogs/{id} {
+      allow read: if isStaff();
+      allow create: if isStaff()
+        && request.resource.data.keys().hasOnly(['tenantId','roomId','invoiceIds','channel','by','day','at'])
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.channel in ['copy','zalo','sms','email']
+        && request.resource.data.roomId is string
+        && request.resource.data.invoiceIds is list
+        && request.resource.data.invoiceIds.size() <= 50
+        && request.resource.data.day is string
+        && request.resource.data.day.size() == 10;
+      allow delete: if isAdmin();
+    }
     match /meterReadings/{id} {
       allow read: if isStaff();
       allow create, update: if isStaff();

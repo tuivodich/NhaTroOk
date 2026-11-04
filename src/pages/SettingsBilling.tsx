@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../lib/auth";
 import { useAudit } from "../lib/audit";
@@ -18,6 +18,9 @@ export default function SettingsBilling() {
   const [water, setWater] = useState<number | "">("");
   const [fees, setFees] = useState<FixedFee[]>([]);
   const { text: payText, loading: payLoading } = usePaymentInfo();
+  const [autoOn, setAutoOn] = useState(false);
+  const [daysBefore, setDaysBefore] = useState<number | "">(3);
+  const [autoInit, setAutoInit] = useState(false);
   const [payInfo, setPayInfo] = useState("");
   const [payInit, setPayInit] = useState(false);
   const [msg, setMsg] = useState("");
@@ -34,6 +37,15 @@ export default function SettingsBilling() {
 
   useEffect(() => { if (!payLoading && !payInit) { setPayInfo(payText); setPayInit(true); } }, [payLoading, payInit, payText]);
 
+  // [PHASE5] nạp cấu hình nhắc nợ tự động đúng một lần
+  useEffect(() => {
+    if (autoInit) return;
+    return onSnapshot(doc(db, "settings", "reminders"), (snap) => {
+      if (snap.exists()) { setAutoOn(snap.data().enabled === true); setDaysBefore(Number(snap.data().daysBefore ?? 3)); }
+      setAutoInit(true);
+    }, () => setAutoInit(true));
+  }, [autoInit]);
+
   if (!isAdminRole(profile?.role)) {
     return <section className="ct"><div className="ct-empty"><strong>Chỉ admin mới được chỉnh đơn giá.</strong></div></section>;
   }
@@ -48,10 +60,12 @@ export default function SettingsBilling() {
       await setDoc(doc(db, "settings", "billing"), {
         electricRate: +electric, waterRate: +water, fixedFees: clean, updatedAt: serverTimestamp(), updatedBy: profile?.uid ?? "",
       });
+      const db_ = daysBefore === "" ? 3 : Math.min(14, Math.max(0, Math.round(+daysBefore)));
+      await setDoc(doc(db, "settings", "reminders"), { enabled: autoOn, daysBefore: db_, updatedAt: serverTimestamp(), updatedBy: profile?.uid ?? "" });
       await setDoc(doc(db, "settings", "payment"), { text: payInfo.trim(), updatedAt: serverTimestamp(), updatedBy: profile?.uid ?? "" });
       setFees(clean);
       audit("billing.settings", "Cap nhat don gia dien nuoc", { type: "settings", id: "billing" });
-      setMsg("Đã lưu đơn giá. Áp dụng cho các hóa đơn lập từ bây giờ.");
+      setMsg("Đã lưu. Đơn giá áp dụng cho các hóa đơn lập từ bây giờ.");
     } catch (ex) {
       console.error("save billing settings failed", ex);
       setBad(true); setMsg("Lỗi: " + ((ex as Error)?.message ?? String(ex)));
@@ -97,6 +111,19 @@ export default function SettingsBilling() {
         <label>Ngân hàng, số tài khoản, chủ tài khoản, nội dung chuyển khoản
           <textarea rows={4} maxLength={600} value={payInfo} onChange={(e) => setPayInfo(e.target.value)} placeholder={"Ngân hàng ABC · STK 0123456789 · Nguyễn Văn A\nNội dung: Phòng <mã phòng> <tháng>"} />
         </label>
+
+        <h4 className="rm-sec">Nhắc nợ tự động qua email</h4>
+        <label className="rx-switch" style={{ marginBottom: 8 }}>
+          <input type="checkbox" checked={autoOn} onChange={(e) => setAutoOn(e.target.checked)} />
+          <span className="rx-track" aria-hidden="true" /><span>Gửi email nhắc nợ mỗi sáng (8 giờ)</span>
+        </label>
+        <div className="ct-grid2">
+          <label>Nhắc trước hạn (ngày, 0 = không nhắc trước)<NumInput min={0} value={daysBefore} onChange={(e) => setDaysBefore(e.target.value === "" ? "" : +e.target.value)} /></label>
+        </div>
+        <p className="ct-sub" style={{ margin: "8px 0 0" }}>
+          Hệ thống nhắc trước hạn, đúng ngày hạn, rồi sau hạn 1, 3, 7 ngày và mỗi 7 ngày. Chỉ gửi cho khách có email trong hồ sơ, và bỏ qua hóa đơn khách đã báo chuyển khoản.
+          Việc gửi chạy bằng GitHub Actions nên cần cài đặt một lần, xem hướng dẫn trong thư mục <code>reminders/README.md</code> của repo.
+        </p>
 
         {msg && <p className={bad ? "error" : "info"} role="status" style={{ marginTop: 12 }}>{msg}</p>}
         <div className="ct-actions"><button type="submit" disabled={busy}>{busy ? "Đang lưu…" : "Lưu đơn giá"}</button></div>

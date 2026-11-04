@@ -1,0 +1,55 @@
+name: Nhắc nợ tự động
+
+on:
+  schedule:
+    - cron: "0 1 * * *"        # 01:00 UTC = 08:00 giờ Việt Nam (GitHub có thể trễ vài phút)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chỉ mô phỏng, không gửi email"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HAS_KEY: ${{ secrets.FIREBASE_ADMIN_KEY != '' }}
+    steps:
+      - name: Kiểm tra cấu hình
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::Chưa có secret FIREBASE_ADMIN_KEY nên bỏ qua. Xem reminders/README.md để cài đặt."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+
+      - uses: actions/setup-node@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: reminders/package-lock.json
+
+      - name: Cài thư viện
+        if: env.HAS_KEY == 'true'
+        run: npm ci --prefix reminders
+
+      - name: Gửi nhắc nợ
+        if: env.HAS_KEY == 'true'
+        run: node --experimental-strip-types reminders/send-reminders.mjs
+        env:
+          FIREBASE_ADMIN_KEY: ${{ secrets.FIREBASE_ADMIN_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '1' || '0' }}
