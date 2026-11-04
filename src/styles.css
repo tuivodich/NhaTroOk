@@ -330,3 +330,25 @@ input, select, textarea { border-radius: var(--radius-sm); border-color: #9FD3CB
 .authcard form input { width: 100%; min-height: 44px; }
 .authcard form button[type="submit"] { width: 100%; min-height: 44px; }
 .authcard .block { min-height: 44px; }
+
+/* ===== Rooms (ui-ux-pro-max) ===== */
+.rm-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.ct-card.rm-card { padding: 0; overflow: hidden; border-left: 1px solid var(--border); gap: 0; }
+.rm-img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; background: #E3F5F2; }
+.rm-img-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.rm-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.rm-price { font-family: var(--font-h); font-size: 20px; font-weight: 700; color: var(--brand); }
+.rm-price .ct-sub { font-family: var(--font-b); font-weight: 400; }
+.rm-facts { display: flex; gap: 6px 14px; flex-wrap: wrap; }
+.rm-amen { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.rm-amen li { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: #ECFAF7; color: #115E59; border: 1px solid var(--border); }
+.rm-occ { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); background: #F0F9FF; color: #075985; text-decoration: none; min-height: 44px; justify-content: center; }
+.rm-occ:hover { background: #E0F2FE; }
+.rm-occ span { display: inline-flex; align-items: center; gap: 6px; }
+.rm-occ .ct-sub { color: #0C4A6E; }
+.rm-flags { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+.rm-sec { margin: 18px 0 8px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-family: var(--font-b); font-weight: 600; }
+.rm-sec:first-of-type { margin-top: 4px; }
+.rm-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rm-prop select { min-height: 44px; }
+@media (max-width: 640px) { .rm-filters { width: 100%; } .rm-prop { flex: 1 1 100%; } }
