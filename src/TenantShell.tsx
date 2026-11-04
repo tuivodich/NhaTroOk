@@ -57,7 +57,7 @@ export default function TenantShell() {
         ) : (
           <>
             {tab === "phong" && <TenantRoom contracts={contracts} />}
-            {tab === "hoadon" && <TenantInvoices invoices={invoices} loading={li} />}
+            {tab === "hoadon" && <TenantInvoices invoices={invoices} loading={li} uid={user.uid} tenantId={tenant.id} />}
             {tab === "hopdong" && <TenantContracts contracts={contracts} loading={lc} />}
             {tab === "yeucau" && <TenantMaintenance uid={user.uid} tenantId={tenant.id} roomId={room?.roomId} />}
           </>

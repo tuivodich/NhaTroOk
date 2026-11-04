@@ -1,11 +1,11 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { addDoc, collection, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCollection } from "../lib/useCollection";
 import { useAudit } from "../lib/audit";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
-import { isAdminRole, type InvoiceDoc, type InvoiceStatus, type RoomDoc, type TenantDoc } from "../lib/types";
+import { isAdminRole, type InvoiceDoc, type InvoiceStatus, type PaymentReport, type RoomDoc, type TenantDoc } from "../lib/types";
 import MoneyText from "../components/MoneyText";
 import NumInput from "../components/NumInput";
 import { IcCal, IcDoor, IcPlus, IcUser, IcWarn } from "../components/Icons";
@@ -39,6 +39,7 @@ export default function Invoices() {
   const { data: invoices, loading } = useCollection<InvoiceDoc>("invoices");
   const { data: rooms } = useCollection<RoomDoc>("rooms");
   const { data: tenants } = useCollection<TenantDoc>("tenants");
+  const { data: reports } = useCollection<PaymentReport>("paymentReports");
   const [form, setForm] = useState<F | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -106,6 +107,31 @@ export default function Invoices() {
     } finally { setBusy(false); }
   };
 
+  // [PHASE4D] Xác nhận / từ chối báo cáo chuyển khoản của khách (staff + admin)
+  const pending = reports.filter((r) => r.status === "pending").sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
+  const reviewReport = async (r: PaymentReport, ok: boolean) => {
+    const inv = invoices.find((i) => i.id === r.invoiceId);
+    if (!inv) return setErr("Không tìm thấy hóa đơn của báo cáo này.");
+    let staffNote = "";
+    if (ok) {
+      if (!window.confirm(`Xác nhận đã nhận ${new Intl.NumberFormat("vi-VN").format(r.amount)} đ cho phòng ${roomCode(inv.roomId)} kỳ ${fmtMonth(inv.month)}?\n\nHóa đơn sẽ chuyển sang "Đã trả".`)) return;
+    } else {
+      const n = window.prompt("Lý do từ chối (khách sẽ thấy):", "Chưa nhận được tiền");
+      if (n === null) return;
+      staffNote = n.trim();
+    }
+    setErr("");
+    try {
+      const b = writeBatch(db);
+      b.update(doc(db, "paymentReports", r.id), {
+        status: ok ? "confirmed" : "rejected", reviewedBy: profile?.uid ?? "", updatedAt: serverTimestamp(), ...(staffNote ? { staffNote } : {}),
+      });
+      if (ok) b.update(doc(db, "invoices", inv.id), { status: "paid", paidAt: Date.now() });
+      await b.commit();
+      audit(ok ? "payment.confirm" : "payment.reject", `${ok ? "Xac nhan" : "Tu choi"} thanh toan ${inv.month}`, { type: "invoice", id: inv.id });
+    } catch (ex) { setErr("Lỗi: " + ((ex as Error)?.message ?? String(ex))); }
+  };
+
   const markPaid = async (x: InvoiceDoc) => {
     if (!confirm(`Đánh dấu đã thu hóa đơn phòng ${roomCode(x.roomId)} kỳ ${fmtMonth(x.month)}?`)) return;
     try {
@@ -157,6 +183,29 @@ export default function Invoices() {
       </div>
 
       {err && <p className="error" role="alert">{err}</p>}
+
+      {pending.length > 0 && (
+        <div className="card" style={{ borderColor: "#f59e0b" }}>
+          <h3 style={{ marginTop: 0 }}>Khách báo đã chuyển khoản <span className="ct-chip-n">{pending.length}</span></h3>
+          <ul className="dash-list">
+            {pending.map((r) => {
+              const inv = invoices.find((i) => i.id === r.invoiceId);
+              return (
+                <li key={r.id} className="pr-row">
+                  <div className="dash-li-main" style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+                    <b>Phòng {inv ? roomCode(inv.roomId) : "?"} · kỳ {inv ? fmtMonth(inv.month) : "?"} · <span className="ct-num"><MoneyText value={r.amount} /></span></b>
+                    <span className="ct-sub">{tenantName(r.tenantId) || "Khách"}{r.note ? ` · “${r.note}”` : ""}</span>
+                  </div>
+                  <div className="ct-actions" style={{ margin: 0, padding: 0 }}>
+                    <button onClick={() => reviewReport(r, true)}>Đã nhận tiền</button>
+                    <button className="ghost danger" onClick={() => reviewReport(r, false)}>Chưa nhận</button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {form && (
         <form className="card ct-form" onSubmit={save}>

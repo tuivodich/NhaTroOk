@@ -404,3 +404,6 @@ input, select, textarea { border-radius: var(--radius-sm); border-color: #9FD3CB
 .tp-main { max-width: 760px; margin: 0 auto; padding: 16px; }
 .tp-stack { display: flex; flex-direction: column; gap: 14px; }
 .tn-link { border-top: 1px dashed var(--border); padding-top: 10px; }
+.tp-pay { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pr-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 8px 4px; border-top: 1px solid var(--border); }
+.pr-row:first-child { border-top: 0; }

@@ -83,12 +83,44 @@ service cloud.firestore {
     match /invoices/{id} {
       allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isStaff();
-      allow update, delete: if isAdmin();
+      // Staff chỉ được đánh dấu "đã trả"; sửa nội dung/xóa là việc của admin
+      allow update: if isAdmin()
+        || (isStaff()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','paidAt'])
+            && request.resource.data.status == 'paid');
+      allow delete: if isAdmin();
+    }
+    // [PHASE4D] Khách báo đã chuyển khoản; staff xác nhận/từ chối. Khách không sửa được hóa đơn.
+    match /paymentReports/{id} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['invoiceId','userId','tenantId','roomId','amount','note','status','createdAt','updatedAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.invoiceId is string
+        && id == 'pr_' + request.resource.data.invoiceId
+        && get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.userId == request.auth.uid
+        && get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.status != 'paid'
+        && request.resource.data.amount == get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.total
+        && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 300));
+      allow update: if (isStaff()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','staffNote','reviewedBy','updatedAt'])
+            && request.resource.data.status in ['confirmed','rejected'])
+        || (isSignedIn() && resource.data.userId == request.auth.uid
+            && resource.data.status == 'rejected'
+            && request.resource.data.status == 'pending'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','note','updatedAt'])
+            && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 300)));
+      allow delete: if isAdmin();
     }
     match /meterReadings/{id} {
       allow read: if isStaff();
       allow create, update: if isStaff();
       allow delete: if isAdmin();
+    }
+    // Thông tin chuyển khoản: khách (đã đăng nhập) đọc được để biết chuyển đi đâu
+    match /settings/payment {
+      allow read: if isSignedIn();
     }
     match /settings/{id} {
       allow read: if isStaff();

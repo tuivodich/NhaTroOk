@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCollection } from "../lib/useCollection";
-import type { ContractDoc, InquiryDoc, PropertyDoc, RoomDoc, TenantDoc } from "../lib/types";
+import type { ContractDoc, InquiryDoc, PaymentReport, PropertyDoc, RoomDoc, TenantDoc } from "../lib/types";
 import { useI18n } from "../lib/i18n";
 import { useBrand } from "../brand/BrandProvider";
 import MoneyText from "../components/MoneyText";
@@ -26,6 +26,7 @@ export default function Dashboard() {
   const { data: contracts } = useCollection<ContractDoc>("contracts");
   const { data: inquiries } = useCollection<InquiryDoc>("inquiries");
   const { data: tenants } = useCollection<TenantDoc>("tenants");
+  const { data: payReports } = useCollection<PaymentReport>("paymentReports");
 
   const roomCode = (id: string) => rooms.find((r) => r.id === id)?.code ?? id;
   const tenantName = (id: string) => tenants.find((x) => x.id === id)?.name ?? id;
@@ -53,7 +54,8 @@ export default function Dashboard() {
     };
   }, [rooms, contracts, inquiries]);
 
-  const todo = s.newInq.length + s.drafts + s.expiring.length;
+  const payPending = payReports.filter((r) => r.status === "pending").length;
+  const todo = s.newInq.length + s.drafts + s.expiring.length + payPending;
 
   return (
     <section className="ct dash">
@@ -101,6 +103,9 @@ export default function Dashboard() {
             <ul className="dash-todo">
               {s.newInq.length > 0 && (
                 <li><Link to="/app/inquiries"><IcInbox /><span><b>{s.newInq.length}</b> yêu cầu thuê mới</span><IcArrow /></Link></li>
+              )}
+              {payPending > 0 && (
+                <li><Link to="/app/invoices"><IcInbox /><span><b>{payPending}</b> khách báo đã chuyển khoản, chờ xác nhận</span><IcArrow /></Link></li>
               )}
               {s.drafts > 0 && (
                 <li><Link to="/app/contracts"><IcFile /><span><b>{s.drafts}</b> hợp đồng nháp chờ kích hoạt</span><IcArrow /></Link></li>

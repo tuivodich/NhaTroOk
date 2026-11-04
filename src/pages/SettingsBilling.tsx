@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import { useAudit } from "../lib/audit";
 import { isAdminRole, type FixedFee } from "../lib/types";
 import { useBillingSettings } from "../lib/useBillingSettings";
+import { usePaymentInfo } from "../lib/usePaymentInfo";
 import NumInput from "../components/NumInput";
 import { IcPlus } from "../components/Icons";
 
@@ -16,6 +17,9 @@ export default function SettingsBilling() {
   const [electric, setElectric] = useState<number | "">("");
   const [water, setWater] = useState<number | "">("");
   const [fees, setFees] = useState<FixedFee[]>([]);
+  const { text: payText, loading: payLoading } = usePaymentInfo();
+  const [payInfo, setPayInfo] = useState("");
+  const [payInit, setPayInit] = useState(false);
   const [msg, setMsg] = useState("");
   const [bad, setBad] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -27,6 +31,8 @@ export default function SettingsBilling() {
     setElectric(settings.electricRate); setWater(settings.waterRate); setFees(settings.fixedFees);
     setInit(true);
   }, [loading, init, settings]);
+
+  useEffect(() => { if (!payLoading && !payInit) { setPayInfo(payText); setPayInit(true); } }, [payLoading, payInit, payText]);
 
   if (!isAdminRole(profile?.role)) {
     return <section className="ct"><div className="ct-empty"><strong>Chỉ admin mới được chỉnh đơn giá.</strong></div></section>;
@@ -42,6 +48,7 @@ export default function SettingsBilling() {
       await setDoc(doc(db, "settings", "billing"), {
         electricRate: +electric, waterRate: +water, fixedFees: clean, updatedAt: serverTimestamp(), updatedBy: profile?.uid ?? "",
       });
+      await setDoc(doc(db, "settings", "payment"), { text: payInfo.trim(), updatedAt: serverTimestamp(), updatedBy: profile?.uid ?? "" });
       setFees(clean);
       audit("billing.settings", "Cap nhat don gia dien nuoc", { type: "settings", id: "billing" });
       setMsg("Đã lưu đơn giá. Áp dụng cho các hóa đơn lập từ bây giờ.");
@@ -85,6 +92,11 @@ export default function SettingsBilling() {
           ))}
         </div>
         <button type="button" className="ghost" style={{ marginTop: 8 }} onClick={() => setFees([...fees, { label: "", amount: 0 }])}><IcPlus /> Thêm phí</button>
+
+        <h4 className="rm-sec">Thông tin chuyển khoản (khách sẽ thấy)</h4>
+        <label>Ngân hàng, số tài khoản, chủ tài khoản, nội dung chuyển khoản
+          <textarea rows={4} maxLength={600} value={payInfo} onChange={(e) => setPayInfo(e.target.value)} placeholder={"Ngân hàng ABC · STK 0123456789 · Nguyễn Văn A\nNội dung: Phòng <mã phòng> <tháng>"} />
+        </label>
 
         {msg && <p className={bad ? "error" : "info"} role="status" style={{ marginTop: 12 }}>{msg}</p>}
         <div className="ct-actions"><button type="submit" disabled={busy}>{busy ? "Đang lưu…" : "Lưu đơn giá"}</button></div>

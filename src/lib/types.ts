@@ -170,3 +170,21 @@ export interface MaintenanceRequest {
   createdAt?: any;
   updatedAt?: any;
 }
+
+
+// ===== [PHASE4D] Khách báo đã chuyển khoản =====
+export type PaymentReportStatus = "pending" | "confirmed" | "rejected";
+export interface PaymentReport {
+  id: string;            // `pr_${invoiceId}` (mỗi hóa đơn tối đa một báo cáo)
+  invoiceId: string;
+  userId: string;
+  tenantId?: string;
+  roomId?: string;
+  amount: number;
+  note?: string;
+  status: PaymentReportStatus;
+  staffNote?: string;
+  reviewedBy?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
