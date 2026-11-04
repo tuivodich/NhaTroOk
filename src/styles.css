@@ -232,3 +232,9 @@ button.linkbtn { background: transparent; color: var(--brand); padding: 0; }
 .dash .card { margin-bottom:14px; }
 .dash :focus-visible { outline:3px solid color-mix(in oklab, var(--brand) 55%, transparent); outline-offset:2px; }
 @media (prefers-reduced-motion: reduce) { .dash-bar > div { transition:none; } }
+
+/* ===== Tenants (ui-ux-pro-max) ===== */
+.ct-card.tn-idle { border-left-color:#d1d5db; }
+.tn-contracts ul { list-style:none; margin:6px 0; padding:0; display:flex; flex-direction:column; gap:2px; }
+.tn-contracts li a { display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:44px; padding:6px 10px; border-radius:8px; text-decoration:none; color:var(--text); background:#f9fafb; }
+.tn-contracts li a:hover { background:#f3f4f6; }
