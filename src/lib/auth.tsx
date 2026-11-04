@@ -9,12 +9,8 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import {
-  collection,
   doc,
   getDoc,
-  getDocs,
-  limit,
-  query,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -49,25 +45,17 @@ async function ensureProfile(user: FirebaseUser): Promise<UserProfile> {
   const snap = await getDoc(userRef);
   if (snap.exists()) return snap.data() as UserProfile;
 
+  // Vai trò khi tạo hồ sơ: staff nếu email có lời mời còn hiệu lực, ngược lại tenant.
+  // Admin KHÔNG thể tự gán (rules chặn). Admin đầu tiên của dự án mới: đặt role = "admin"
+  // thủ công trong Firebase Console (Firestore > users > doc của bạn).
   let role: Role = "tenant";
-  const firstSnap = await getDocs(query(collection(db, "users"), limit(1)));
-  const isFirstUser = firstSnap.empty;
-
-  if (isFirstUser) {
-    role = "admin";
-  } else if (user.email) {
+  if (user.email) {
     const emailLower = user.email.toLowerCase();
     const inviteRef = doc(db, "staffInvites", emailLower);
-    const inviteSnap = await getDoc(inviteRef);
-    if (inviteSnap.exists() && inviteSnap.data().active !== false) {
-      role = "staff";
-      try {
-        await updateDoc(inviteRef, {
-          acceptedAt: serverTimestamp(),
-          acceptedBy: user.uid,
-        });
-      } catch { /* non-blocking */ }
-    }
+    try {
+      const inviteSnap = await getDoc(inviteRef);
+      if (inviteSnap.exists() && inviteSnap.data().active !== false) role = "staff";
+    } catch { /* không đọc được lời mời → giữ tenant */ }
   }
 
   const profile = {
@@ -82,6 +70,11 @@ async function ensureProfile(user: FirebaseUser): Promise<UserProfile> {
   } as unknown as UserProfile;
 
   await setDoc(userRef, profile);
+  if (role === "staff" && user.email) {
+    try {
+      await updateDoc(doc(db, "staffInvites", user.email.toLowerCase()), { acceptedAt: serverTimestamp(), acceptedBy: user.uid });
+    } catch { /* non-blocking: chỉ admin sửa được lời mời */ }
+  }
   return profile;
 }
 

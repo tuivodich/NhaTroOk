@@ -8,10 +8,22 @@ service cloud.firestore {
     function isAdmin() { return isSignedIn() && userRole() == 'admin'; }
     function isStaff() { return isSignedIn() && userRole() in ['admin','staff']; }
 
+    // [PHASE4D] users: không còn mở cho mọi người dùng đọc; không tự nâng quyền.
     match /users/{uid} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == uid;
-      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow read: if isStaff() || (isSignedIn() && request.auth.uid == uid);
+      // Tự tạo hồ sơ của mình: chỉ vai trò tenant, hoặc staff khi email có lời mời còn hiệu lực. Không bao giờ admin.
+      allow create: if isSignedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['uid','email','displayName','photoURL','role','createdAt','lastLoginAt','active'])
+        && request.resource.data.uid == request.auth.uid
+        && (request.resource.data.role == 'tenant'
+            || (request.resource.data.role == 'staff'
+                && request.auth.token.email != null
+                && exists(/databases/$(database)/documents/staffInvites/$(request.auth.token.email.lower()))
+                && get(/databases/$(database)/documents/staffInvites/$(request.auth.token.email.lower())).data.get('active', true) != false));
+      // Admin sửa mọi thứ; người dùng chỉ sửa thông tin hiển thị của mình, không đổi vai trò.
+      allow update: if isAdmin()
+        || (isSignedIn() && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','photoURL','lastLoginAt']));
     }
     match /properties/{id} {
       allow read: if true;
@@ -91,7 +103,11 @@ service cloud.firestore {
       allow get: if isSignedIn()
         && request.auth.token.email != null
         && request.auth.token.email.lower() == email;
-      allow list, create, update, delete: if isAdmin();
+      // Người được mời chỉ được ghi dấu đã nhận lời mời của chính email mình
+      allow update: if isAdmin()
+        || (isSignedIn() && request.auth.token.email != null && request.auth.token.email.lower() == email
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acceptedAt','acceptedBy']));
+      allow list, create, delete: if isAdmin();
     }
   }
 }
