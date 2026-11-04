@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { addDoc, collection, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCollection } from "../lib/useCollection";
@@ -8,6 +8,7 @@ import { useI18n } from "../lib/i18n";
 import { isAdminRole, type InvoiceDoc, type InvoiceStatus, type RoomDoc, type TenantDoc } from "../lib/types";
 import MoneyText from "../components/MoneyText";
 import NumInput from "../components/NumInput";
+import { IcCal, IcDoor, IcPlus, IcUser, IcWarn } from "../components/Icons";
 
 interface F {
   id?: string;
@@ -24,6 +25,12 @@ const empty = (): F => ({
   total: "", status: "unpaid", dueDate: "", notes: "",
 });
 
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const fmtMonth = (m: string) => (m ? m.split("-").reverse().join("/") : "");
+const fmtDate = (d: string) => (d ? d.split("-").reverse().join("/") : "");
+
+type Filter = "all" | InvoiceStatus;
+
 export default function Invoices() {
   const { t } = useI18n();
   const { profile } = useAuth();
@@ -35,9 +42,35 @@ export default function Invoices() {
   const [form, setForm] = useState<F | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [q, setQ] = useState("");
 
   const roomCode = (id: string) => rooms.find((x) => x.id === id)?.code ?? id;
-  const tenantName = (id?: string) => (id ? tenants.find((x) => x.id === id)?.name ?? id : "—");
+  const tenantName = (id?: string) => (id ? tenants.find((x) => x.id === id)?.name ?? id : "");
+
+  // Trạng thái hiển thị: chưa trả mà quá hạn thì coi là "quá hạn" (chỉ hiển thị, không ghi DB)
+  const eff = (x: InvoiceDoc): InvoiceStatus =>
+    x.status === "unpaid" && x.dueDate && x.dueDate < todayStr() ? "overdue" : x.status;
+
+  const s = useMemo(() => {
+    const month = new Date().toISOString().slice(0, 7);
+    const open = invoices.filter((x) => eff(x) !== "paid");
+    return {
+      owed: open.reduce((sum, x) => sum + (Number(x.total) || 0), 0),
+      overdueN: invoices.filter((x) => eff(x) === "overdue").length,
+      unpaidN: invoices.filter((x) => eff(x) === "unpaid").length,
+      collected: invoices.filter((x) => x.status === "paid" && x.month === month).reduce((sum, x) => sum + (Number(x.total) || 0), 0),
+      paidN: invoices.filter((x) => x.status === "paid").length,
+    };
+  }, [invoices]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visible = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return invoices
+      .filter((x) => filter === "all" || eff(x) === filter)
+      .filter((x) => !needle || [roomCode(x.roomId), tenantName(x.tenantId), x.month].some((v) => v.toLowerCase().includes(needle)))
+      .sort((a, b) => (b.month || "").localeCompare(a.month || ""));
+  }, [invoices, filter, q, rooms, tenants]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -50,11 +83,7 @@ export default function Invoices() {
 
       // Chỉ thêm field có giá trị — KHÔNG đưa undefined vào payload
       const payload: Record<string, unknown> = {
-        roomId: form.roomId,
-        month: form.month,
-        total: +form.total,
-        status: form.status,
-        items: [],
+        roomId: form.roomId, month: form.month, total: +form.total, status: form.status, items: [],
       };
       if (form.tenantId) payload.tenantId = form.tenantId;
       if (form.dueDate) payload.dueDate = form.dueDate;
@@ -76,6 +105,7 @@ export default function Invoices() {
   };
 
   const markPaid = async (x: InvoiceDoc) => {
+    if (!confirm(`Đánh dấu đã thu hóa đơn phòng ${roomCode(x.roomId)} kỳ ${fmtMonth(x.month)}?`)) return;
     try {
       await updateDoc(doc(db, "invoices", x.id), { status: "paid", paidAt: Date.now() });
       audit("invoice.paid", "Danh dau da tra " + x.month, { type: "invoice", id: x.id });
@@ -87,6 +117,7 @@ export default function Invoices() {
 
   const remove = async (x: InvoiceDoc) => {
     if (!confirm(t("deleteInvoiceSure"))) return;
+    if (!confirm("XÁC NHẬN LẦN 2: xóa hóa đơn này? Không thể hoàn tác.")) return;
     try {
       await deleteDoc(doc(db, "invoices", x.id));
       audit("invoice.delete", "Xoa hoa don " + x.month, { type: "invoice", id: x.id });
@@ -96,18 +127,39 @@ export default function Invoices() {
     }
   };
 
+  const label = (st: InvoiceStatus) => (st === "paid" ? t("invoicePaid") : st === "overdue" ? t("invoiceOverdue") : t("invoiceUnpaid"));
+  const chips: { key: Filter; label: string; n: number }[] = [
+    { key: "all", label: "Tất cả", n: invoices.length },
+    { key: "unpaid", label: t("invoiceUnpaid"), n: s.unpaidN },
+    { key: "overdue", label: t("invoiceOverdue"), n: s.overdueN },
+    { key: "paid", label: t("invoicePaid"), n: s.paidN },
+  ];
+
   return (
-    <section>
-      <div className="row between">
-        <h2>{t("invoices")}</h2>
-        {canEdit && !form && <button onClick={() => { setErr(""); setForm(empty()); }}>+ {t("addInvoice")}</button>}
+    <section className="ct">
+      <div className="ct-head">
+        <div>
+          <h2>{t("invoices")}</h2>
+          <p className="info" style={{ margin: "2px 0 0" }}>Theo dõi công nợ và tiền đã thu theo từng kỳ.</p>
+        </div>
+        {canEdit && !form && (
+          <button className="ct-btn-primary" onClick={() => { setErr(""); setForm(empty()); }}><IcPlus /> {t("addInvoice")}</button>
+        )}
       </div>
-      {err && <p className="error">{err}</p>}
+
+      <div className="ct-stats">
+        <div className="ct-stat"><span className="ct-stat-n ct-num"><MoneyText value={s.owed} /></span><span className="ct-stat-l">Còn phải thu</span></div>
+        <div className={"ct-stat" + (s.overdueN ? " warn" : "")}><span className="ct-stat-n">{s.overdueN}</span><span className="ct-stat-l">Hóa đơn quá hạn</span></div>
+        <div className="ct-stat"><span className="ct-stat-n">{s.unpaidN}</span><span className="ct-stat-l">Chưa trả</span></div>
+        <div className="ct-stat"><span className="ct-stat-n ct-num"><MoneyText value={s.collected} /></span><span className="ct-stat-l">Đã thu tháng này</span></div>
+      </div>
+
+      {err && <p className="error" role="alert">{err}</p>}
 
       {form && (
-        <form className="card" onSubmit={save}>
+        <form className="card ct-form" onSubmit={save}>
           <h3>{form.id ? t("editInvoice") : t("addInvoice")}</h3>
-          <div className="row">
+          <div className="ct-grid2">
             <label>{t("invoiceRoom")}
               <select required value={form.roomId} onChange={(e) => setForm({ ...form, roomId: e.target.value })}>
                 <option value="">{t("none")}</option>
@@ -120,12 +172,8 @@ export default function Invoices() {
                 {tenants.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
               </select>
             </label>
-          </div>
-          <div className="row">
             <label>{t("invoiceMonth")}<input required type="month" value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value })} /></label>
             <label>{t("invoiceDue")}<input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></label>
-          </div>
-          <div className="row">
             <label>{t("invoiceTotal")}<NumInput min={0} value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value === "" ? "" : +e.target.value })} /></label>
             <label>{t("status")}
               <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as InvoiceStatus })}>
@@ -135,40 +183,71 @@ export default function Invoices() {
               </select>
             </label>
           </div>
-          <label>{t("notes")}<textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
-          <div className="row">
-            <button type="submit" disabled={busy}>{t("save")}</button>
+          <label style={{ marginTop: 12 }}>{t("notes")}<textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
+          <div className="ct-actions">
+            <button type="submit" disabled={busy}>{busy ? "Đang lưu…" : t("save")}</button>
             <button type="button" className="ghost" onClick={() => { setForm(null); setErr(""); }}>{t("cancel")}</button>
           </div>
         </form>
       )}
 
-      {loading ? <p>{t("loading")}</p> : invoices.length === 0 && !form ? (
-        <p className="info">{t("noInvoices")}</p>
+      {invoices.length > 0 && (
+        <div className="ct-toolbar">
+          <div className="ct-chips" role="group" aria-label="Lọc hóa đơn">
+            {chips.map((c) => (
+              <button key={c.key} type="button" className={"ct-chip" + (filter === c.key ? " on" : "")}
+                aria-pressed={filter === c.key} onClick={() => setFilter(c.key)}>
+                {c.label} <span className="ct-chip-n">{c.n}</span>
+              </button>
+            ))}
+          </div>
+          <label className="ct-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input type="search" placeholder="Tìm phòng, khách, kỳ…" aria-label="Tìm hóa đơn" value={q} onChange={(e) => setQ(e.target.value)} />
+          </label>
+        </div>
+      )}
+      <p className="ct-count" role="status" aria-atomic="true">
+        {!loading && invoices.length > 0 ? `Hiển thị ${visible.length} / ${invoices.length} hóa đơn` : ""}
+      </p>
+
+      {loading ? (
+        <div className="ct-list" aria-busy="true">{[0, 1, 2].map((i) => <div key={i} className="ct-card ct-skel" />)}</div>
+      ) : invoices.length === 0 && !form ? (
+        <div className="ct-empty"><strong>{t("noInvoices")}</strong><span>Tạo hóa đơn đầu tiên cho một phòng đang thuê.</span></div>
+      ) : visible.length === 0 ? (
+        <div className="ct-empty"><strong>Không có hóa đơn phù hợp bộ lọc.</strong>
+          <button className="ghost" onClick={() => { setFilter("all"); setQ(""); }}>Xóa bộ lọc</button></div>
       ) : (
-        <div className="list">
-          {invoices.map((x) => (
-            <div className="card" key={x.id}>
-              <div className="row between">
-                <strong>{roomCode(x.roomId)} · {x.month}</strong>
-                {canEdit && (
-                  <div className="row">
-                    {x.status !== "paid" && <button className="ghost" onClick={() => markPaid(x)}>{t("markPaid")}</button>}
-                    <button className="ghost" onClick={() => { setErr(""); setForm({ id: x.id, roomId: x.roomId, tenantId: x.tenantId ?? "", month: x.month, total: x.total, status: x.status, dueDate: x.dueDate ?? "", notes: x.notes ?? "" }); }}>{t("edit")}</button>
-                    <button className="ghost danger" onClick={() => remove(x)}>{t("delete")}</button>
-                  </div>
+        <div className="ct-list">
+          {visible.map((x) => {
+            const st = eff(x);
+            return (
+              <article className={"ct-card" + (st === "overdue" ? " bad" : st === "unpaid" ? " warn" : "")} key={x.id}>
+                <header className="ct-card-head">
+                  <div className="ct-code">Kỳ {fmtMonth(x.month)}</div>
+                  <span className={"tag " + st}>{label(st)}</span>
+                </header>
+                <div className="rm-price ct-num" style={{ color: "var(--text)" }}><MoneyText value={x.total} /></div>
+                <dl className="ct-meta">
+                  <div><dt><span className="sr">Phòng</span><IcDoor /></dt><dd>Phòng {roomCode(x.roomId)}</dd></div>
+                  {x.tenantId && <div><dt><span className="sr">Khách</span><IcUser /></dt><dd>{tenantName(x.tenantId)}</dd></div>}
+                  {x.dueDate && <div><dt><span className="sr">{t("invoiceDue")}</span><IcCal /></dt><dd className="ct-num">{t("invoiceDue")}: {fmtDate(x.dueDate)}</dd></div>}
+                </dl>
+                {st === "overdue" && x.dueDate && (
+                  <div className="ct-alert bad" role="note"><IcWarn />Quá hạn từ {fmtDate(x.dueDate)}</div>
                 )}
-              </div>
-              <div className="row wrap">
-                <span>{tenantName(x.tenantId)}</span>
-                <span><MoneyText value={x.total} /></span>
-                <span className={"tag " + x.status}>
-                  {x.status === "paid" ? t("invoicePaid") : x.status === "overdue" ? t("invoiceOverdue") : t("invoiceUnpaid")}
-                </span>
-                {x.dueDate ? <span>{t("invoiceDue")}: {x.dueDate}</span> : null}
-              </div>
-            </div>
-          ))}
+                {x.notes ? <p className="ct-notes">{x.notes}</p> : null}
+                {canEdit && (
+                  <footer className="ct-actions">
+                    {x.status !== "paid" && <button onClick={() => markPaid(x)}>{t("markPaid")}</button>}
+                    <button className="ghost" onClick={() => { setErr(""); setForm({ id: x.id, roomId: x.roomId, tenantId: x.tenantId ?? "", month: x.month, total: x.total, status: x.status, dueDate: x.dueDate ?? "", notes: x.notes ?? "" }); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{t("edit")}</button>
+                    <button className="ghost danger" onClick={() => remove(x)}>{t("delete")}</button>
+                  </footer>
+                )}
+              </article>
+            );
+          })}
         </div>
       )}
     </section>

@@ -352,3 +352,27 @@ input, select, textarea { border-radius: var(--radius-sm); border-color: #9FD3CB
 .rm-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .rm-prop select { min-height: 44px; }
 @media (max-width: 640px) { .rm-filters { width: 100%; } .rm-prop { flex: 1 1 100%; } }
+
+/* ===== Properties / Invoices / Users / Settings / Invites / Extras / Audit ===== */
+.tag.role-admin { background: #CCFBF1; color: #115E59; }
+.tag.role-staff { background: #E0F2FE; color: #075985; }
+.tag.role-tenant { background: #F3F4F6; color: #374151; }
+.tag.cancelled { background: #fef2f2; color: #b91c1c; }
+
+.rx-toggles { display: flex; gap: 8px 20px; flex-wrap: wrap; }
+.rx-switch { flex-direction: row; align-items: center; gap: 10px; color: var(--text); font-size: 14px; position: relative; min-height: 44px; cursor: pointer; }
+.rx-switch input { position: absolute; opacity: 0; width: 44px; height: 44px; margin: 0; cursor: pointer; }
+.rx-track { width: 40px; height: 24px; border-radius: 999px; background: #B6C7C4; position: relative; flex: 0 0 auto; transition: background-color .15s; }
+.rx-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.rx-switch input:checked + .rx-track { background: var(--brand); }
+.rx-switch input:checked + .rx-track::after { transform: translateX(16px); }
+.rx-switch input:focus-visible + .rx-track { outline: 3px solid color-mix(in oklab, var(--brand) 55%, transparent); outline-offset: 2px; }
+.rx-switch input:disabled + .rx-track { opacity: .5; }
+
+.au-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.au-item { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+.au-time { color: var(--muted); font-size: 13px; }
+.au-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.au-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 640px) { .au-item { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: reduce) { .rx-track, .rx-track::after { transition: none; } }

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../lib/auth";
+import { IcMail } from "../components/Icons";
 
 type StaffInvite = {
   id: string;
@@ -22,13 +23,13 @@ export default function StaffInvites() {
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "staffInvites"), (snap) => {
-      setInvites(snap.docs.map(d => ({ id: d.id, ...d.data() } as StaffInvite)));
+      setInvites(snap.docs.map((d) => ({ id: d.id, ...d.data() } as StaffInvite)));
       setLoading(false);
-    });
+    }, (e) => { setErr(e.message); setLoading(false); });
     return unsub;
   }, []);
 
-  async function handleAdd(e: React.FormEvent) {
+  async function handleAdd(e: FormEvent) {
     e.preventDefault();
     setErr(null);
     const emailLower = email.trim().toLowerCase();
@@ -49,44 +50,66 @@ export default function StaffInvites() {
   }
 
   async function toggleActive(inv: StaffInvite) {
-    await updateDoc(doc(db, "staffInvites", inv.id), {
-      active: inv.active === false ? true : false,
-    });
+    const revoke = inv.active !== false;
+    if (!window.confirm((revoke ? "Thu hồi lời mời của " : "Kích hoạt lại lời mời của ") + inv.email + "?")) return;
+    try {
+      await updateDoc(doc(db, "staffInvites", inv.id), { active: !revoke });
+    } catch (e: any) {
+      setErr(e?.message || "Không cập nhật được lời mời");
+    }
   }
 
   if (profile?.role !== "admin") {
-    return <div className="p-4">Chỉ admin mới có quyền truy cập.</div>;
+    return <section className="ct"><div className="ct-empty"><strong>Chỉ admin mới có quyền truy cập.</strong></div></section>;
   }
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Mời nhân viên</h1>
-      <form onSubmit={handleAdd} className="flex gap-2 mb-6 flex-wrap">
-        <input type="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="border p-2 rounded flex-1 min-w-[220px]" required />
-        <input type="text" placeholder="Tên gợi ý (tuỳ chọn)" value={name} onChange={(e) => setName(e.target.value)} className="border p-2 rounded flex-1 min-w-[180px]" />
-        <button type="submit" disabled={busy} className="btn btn-primary px-4">{busy ? "Đang lưu..." : "Thêm lời mời"}</button>
+    <section className="ct" style={{ maxWidth: 820 }}>
+      <div className="ct-head">
+        <div>
+          <h2>Mời nhân viên</h2>
+          <p className="info" style={{ margin: "2px 0 0" }}>Người có email trong danh sách này sẽ nhận vai trò nhân viên ngay khi đăng nhập lần đầu.</p>
+        </div>
+      </div>
+
+      <form className="card ct-form" onSubmit={handleAdd}>
+        <div className="ct-grid2">
+          <label>Email nhân viên<input type="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+          <label>Tên gợi ý (tuỳ chọn)<input type="text" value={name} onChange={(e) => setName(e.target.value)} /></label>
+        </div>
+        {err && <p className="error" role="alert" style={{ marginTop: 12 }}>{err}</p>}
+        <div className="ct-actions"><button type="submit" disabled={busy}>{busy ? "Đang lưu…" : "Thêm lời mời"}</button></div>
       </form>
-      {err && <div className="text-red-600 mb-3">{err}</div>}
-      {loading ? <div>Đang tải...</div> : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="py-2">Email</th><th>Tên</th><th>Trạng thái</th><th>Đã dùng</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {invites.map((inv) => (
-              <tr key={inv.id} className="border-b">
-                <td className="py-2">{inv.email}</td>
-                <td>{inv.name || "—"}</td>
-                <td>{inv.active === false ? <span className="text-red-600">Đã thu hồi</span> : <span className="text-green-600">Đang hiệu lực</span>}</td>
-                <td>{inv.acceptedAt ? "✓" : "—"}</td>
-                <td><button onClick={() => toggleActive(inv)} className="text-blue-600 underline">{inv.active === false ? "Kích hoạt lại" : "Thu hồi"}</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {loading ? (
+        <div className="ct-list" aria-busy="true">{[0, 1].map((i) => <div key={i} className="ct-card ct-skel" style={{ minHeight: 90 }} />)}</div>
+      ) : invites.length === 0 ? (
+        <div className="ct-empty"><strong>Chưa có lời mời nào.</strong><span>Thêm email nhân viên ở trên.</span></div>
+      ) : (
+        <div className="ct-list">
+          {invites.map((inv) => {
+            const revoked = inv.active === false;
+            return (
+              <article className="ct-card" key={inv.id} style={{ borderLeftColor: revoked ? "#dc2626" : "#059669" }}>
+                <header className="ct-card-head">
+                  <div className="iq-who">
+                    <span className="iq-avatar" aria-hidden="true"><IcMail /></span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ct-code" style={{ overflowWrap: "anywhere", fontSize: 14 }}>{inv.email}</div>
+                      {inv.name && <div className="ct-sub">{inv.name}</div>}
+                    </div>
+                  </div>
+                  <span className={"tag " + (revoked ? "cancelled" : "active")}>{revoked ? "Đã thu hồi" : "Đang hiệu lực"}</span>
+                </header>
+                <div className="ct-sub">{inv.acceptedAt ? "Đã đăng nhập bằng lời mời này" : "Chưa có ai dùng"}</div>
+                <footer className="ct-actions">
+                  <button className={revoked ? "" : "ghost danger"} onClick={() => toggleActive(inv)}>{revoked ? "Kích hoạt lại" : "Thu hồi"}</button>
+                </footer>
+              </article>
+            );
+          })}
+        </div>
       )}
-    </div>
+    </section>
   );
 }
