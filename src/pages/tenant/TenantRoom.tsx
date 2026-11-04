@@ -11,19 +11,21 @@ export default function TenantRoom({ contracts }: { contracts: ContractDoc[] }) 
   const active = contracts.find((c) => c.status === "active") ?? contracts.find((c) => c.status === "draft");
   const [room, setRoom] = useState<RoomDoc | null>(null);
   const [prop, setProp] = useState<PropertyDoc | null>(null);
+  const [denied, setDenied] = useState(false);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       if (!active) { setRoom(null); setProp(null); return; }
       try {
+        setDenied(false);
         const rs = await getDoc(doc(db, "rooms", active.roomId));
         if (!alive || !rs.exists()) return;
         const r = { id: rs.id, ...(rs.data() as object) } as RoomDoc;
         setRoom(r);
         const ps = await getDoc(doc(db, "properties", r.propertyId));
         if (alive && ps.exists()) setProp({ id: ps.id, ...(ps.data() as object) } as PropertyDoc);
-      } catch (e) { console.error("tenant room load failed", e); }
+      } catch (e) { console.error("tenant room load failed", e); if (alive) setDenied(true); }
     })();
     return () => { alive = false; };
   }, [active?.roomId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -52,6 +54,8 @@ export default function TenantRoom({ contracts }: { contracts: ContractDoc[] }) 
           {(room?.amenities ?? []).length > 0 && <ul className="rm-amen" aria-label="Tiện ích">{room!.amenities!.map((a) => <li key={a}>{a}</li>)}</ul>}
         </div>
       </article>
+
+      {denied && <p className="ct-alert warn" role="note" style={{ margin: 0 }}>Chưa tải được thông tin phòng. Hãy nhờ chủ trọ đồng bộ quyền xem phòng cho tài khoản của bạn.</p>}
 
       <div className="ct-stats">
         <div className="ct-stat"><span className="ct-stat-n ct-num"><MoneyText value={active.rent} /></span><span className="ct-stat-l">Tiền thuê / tháng</span></div>

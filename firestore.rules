@@ -29,14 +29,18 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+    // [PHASE4E] rooms: công khai chỉ khi published; khách chỉ đọc phòng mình đang ở (residentUids); staff đọc hết.
     match /rooms/{id} {
-      allow read: if isSignedIn() || resource.data.published == true;
+      allow read: if resource.data.published == true
+        || isStaff()
+        || (isSignedIn() && request.auth.uid in resource.data.get('residentUids', []));
       allow write: if isAdmin();
-      // Staff: chỉ đổi status vacant <-> occupied
+      // Staff: chỉ đổi status (vacant <-> occupied) và/hoặc duy trì residentUids (khách được xem phòng)
       allow update: if isStaff()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-        && ((resource.data.status == 'vacant' && request.resource.data.status == 'occupied')
-         || (resource.data.status == 'occupied' && request.resource.data.status == 'vacant'));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','residentUids'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+            || (resource.data.status == 'vacant' && request.resource.data.status == 'occupied')
+            || (resource.data.status == 'occupied' && request.resource.data.status == 'vacant'));
     }
     match /inquiries/{id} {
       allow create: if
@@ -126,9 +130,17 @@ service cloud.firestore {
       allow read: if isStaff();
       allow write: if isAdmin();
     }
+    // [PHASE4E] auditLogs: chỉ staff/admin ghi, đúng danh tính, đúng thời điểm máy chủ; không ai sửa được.
     match /auditLogs/{id} {
       allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow create: if isStaff()
+        && request.resource.data.keys().hasOnly(['action','message','target','uid','email','role','at','count'])
+        && request.resource.data.action is string
+        && request.resource.data.action.size() > 0
+        && request.resource.data.action.size() <= 60
+        && request.resource.data.at == request.time
+        && (!('uid' in request.resource.data) || request.resource.data.uid == null || request.resource.data.uid == request.auth.uid)
+        && (!('message' in request.resource.data) || (request.resource.data.message is string && request.resource.data.message.size() <= 500));
       allow delete: if isAdmin();
     }
     match /staffInvites/{email} {

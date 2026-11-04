@@ -10,15 +10,13 @@ export default function FeaturedRooms() {
   const [rooms, setRooms] = useState<Room[]>([]);
 
   useEffect(() => {
-    // Query featured, filter published ở client để tránh cần composite index
-    const q = query(collection(db, "rooms"), where("featured", "==", true), limit(20));
-    return onSnapshot(q, (snap) => {
-      const list = snap.docs
-        .map((d) => ({ ...(d.data() as RoomDoc), id: d.id }))
-        .filter((r) => r.published === true)
-        .slice(0, 6);
-      setRooms(list);
-    });
+    // Rules chỉ cho khách ẩn danh đọc phòng published → query PHẢI có where published == true
+    const q = query(collection(db, "rooms"), where("published", "==", true), where("featured", "==", true), limit(6));
+    return onSnapshot(
+      q,
+      (snap) => setRooms(snap.docs.map((d) => ({ ...(d.data() as RoomDoc), id: d.id }))),
+      (e) => console.error("featured rooms failed", e)
+    );
   }, []);
 
   if (rooms.length === 0) return null;

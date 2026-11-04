@@ -1,5 +1,5 @@
 // [PHASE4A] Chốt inquiry → tạo Tenant (link-or-create) + Contract draft + room occupied.
-import { doc, runTransaction, collection, serverTimestamp, type Firestore } from "firebase/firestore";
+import { arrayUnion, doc, runTransaction, collection, serverTimestamp, type Firestore } from "firebase/firestore";
 import { readSeq, writeSeq } from "./counters";
 
 export function normalizePhone(raw: string): string {
@@ -89,7 +89,10 @@ export async function convertInquiry(
       createdAt: serverTimestamp(),
     });
 
-    if (room.status === "vacant") tx.update(roomRef, { status: "occupied" });
+    const roomPatch: Record<string, unknown> = {};
+    if (room.status === "vacant") roomPatch.status = "occupied";
+    if (tenantUserId) roomPatch.residentUids = arrayUnion(tenantUserId); // [PHASE4E]
+    if (Object.keys(roomPatch).length) tx.update(roomRef, roomPatch);
 
     tx.update(inqRef, {
       status: "converted",

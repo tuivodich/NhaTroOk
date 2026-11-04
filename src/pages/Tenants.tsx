@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { addDoc, collection, deleteDoc, deleteField, doc, getDocs, query, updateDoc, where, writeBatch } from "firebase/firestore";
+import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, deleteField, doc, getDocs, query, updateDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCollection } from "../lib/useCollection";
 import { useAudit } from "../lib/audit";
@@ -110,7 +110,14 @@ export default function Tenants() {
       ]);
       cs.docs.forEach((d) => batch.update(d.ref, { userId: val }));
       is.docs.forEach((d) => batch.update(d.ref, { userId: val }));
-      if (cs.size + is.size + 1 > 500) throw new Error("Quá nhiều bản ghi để liên kết một lần");
+      // [PHASE4E] quyền xem phòng: thêm/bớt uid trong room.residentUids
+      const oldUid = (x as TenantDoc).userId;
+      const roomIds = [...new Set(cs.docs.map((d) => (d.data() as ContractDoc).roomId).filter(Boolean))];
+      roomIds.forEach((rid) => {
+        if (oldUid && oldUid !== uid) batch.update(doc(db, "rooms", rid), { residentUids: arrayRemove(oldUid) });
+        if (uid) batch.update(doc(db, "rooms", rid), { residentUids: arrayUnion(uid) });
+      });
+      if (cs.size + is.size + roomIds.length * 2 + 1 > 500) throw new Error("Quá nhiều bản ghi để liên kết một lần");
       await batch.commit();
       audit(uid ? "tenant.link" : "tenant.unlink", (uid ? "Lien ket " : "Go lien ket ") + x.name, { type: "tenant", id: x.id });
       setLinkFor(null);
@@ -118,6 +125,23 @@ export default function Tenants() {
       console.error("link tenant failed", ex);
       setErr("Lỗi liên kết: " + ((ex as Error)?.message ?? String(ex)));
     }
+  };
+
+  // [PHASE4E] Đồng bộ một lần: cấp quyền xem phòng cho mọi khách đã liên kết từ trước
+  const syncRoomAccess = async () => {
+    if (!window.confirm("Đồng bộ quyền xem phòng cho tất cả khách đã liên kết tài khoản?")) return;
+    setErr("");
+    try {
+      const pairs = new Map<string, Set<string>>();
+      for (const c of contracts) {
+        const uid = tenants.find((x) => x.id === c.tenantId)?.userId;
+        if (!uid || !c.roomId) continue;
+        (pairs.get(c.roomId) ?? pairs.set(c.roomId, new Set()).get(c.roomId)!).add(uid);
+      }
+      let n = 0;
+      for (const [rid, uids] of pairs) { await updateDoc(doc(db, "rooms", rid), { residentUids: arrayUnion(...uids) }); n++; }
+      window.alert(`Đã đồng bộ ${n} phòng.`);
+    } catch (ex) { setErr("Lỗi đồng bộ: " + ((ex as Error)?.message ?? String(ex))); }
   };
 
   const remove = async (x: TenantDoc) => {
@@ -150,9 +174,12 @@ export default function Tenants() {
           <p className="info" style={{ margin: "2px 0 0" }}>Hồ sơ khách thuê và các hợp đồng liên quan.</p>
         </div>
         {canEdit && !form && (
+          <div className="ct-actions" style={{ margin: 0, padding: 0 }}>
+            <button className="ghost" onClick={syncRoomAccess}>Đồng bộ quyền xem phòng</button>
           <button className="ct-btn-primary" onClick={() => { setErr(""); setForm({ ...empty }); }}>
             <IcPlus /> {t("addTenant")}
           </button>
+          </div>
         )}
       </div>
 

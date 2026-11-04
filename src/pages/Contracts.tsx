@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { addDoc, collection, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { addDoc, arrayUnion, collection, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useCollection } from "../lib/useCollection";
 import { useAudit } from "../lib/audit";
@@ -124,6 +124,7 @@ export default function Contracts() {
         const uid = tenants.find((x) => x.id === form.tenantId)?.userId;
         if (uid) payload.userId = uid; // [PHASE4C]
         const ref = await addDoc(collection(db, "contracts"), payload);
+        if (uid) await updateDoc(doc(db, "rooms", form.roomId), { residentUids: arrayUnion(uid) }); // [PHASE4E]
         audit("contract.create", "Them hop dong", { type: "contract", id: ref.id });
       }
       setForm(null);

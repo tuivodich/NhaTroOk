@@ -37,6 +37,7 @@ export interface RoomDoc {
   photos?: string[];
   published?: boolean;
   featured?: boolean;
+  residentUids?: string[]; // [PHASE4E] uid khách được xem phòng này (rules); staff/admin duy trì
 }
 
 export interface TenantDoc {
