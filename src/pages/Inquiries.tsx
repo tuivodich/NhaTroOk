@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom"; // [PHASE4A]
+import { IcPhone, IcMail, IcDoor, IcCal } from "../components/Icons";
 import {
   collection,
   doc,
@@ -24,14 +25,6 @@ const STATUS_LABEL: Record<InquiryStatus, string> = {
   rejected: "Từ chối",
 };
 
-const STATUS_COLOR: Record<InquiryStatus, string> = {
-  new: "#1976d2",
-  contacted: "#f57c00",
-  scheduled: "#7b1fa2",
-  converted: "#388e3c",
-  rejected: "#c62828",
-};
-
 export default function Inquiries() {
   const auth = useAuth() as any;
   const uid: string | null = auth?.profile?.uid ?? auth?.user?.uid ?? null;
@@ -42,6 +35,7 @@ export default function Inquiries() {
   const [filter, setFilter] = useState<InquiryStatus | "all">("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     const q = query(collection(db, "inquiries"), orderBy("createdAt", "desc"));
@@ -56,8 +50,11 @@ export default function Inquiries() {
   }, []);
 
   const filtered = useMemo(() => {
-    return filter === "all" ? list : list.filter((x) => x.status === filter);
-  }, [list, filter]);
+    const needle = q.trim().toLowerCase();
+    return list
+      .filter((x) => filter === "all" || x.status === filter)
+      .filter((x) => !needle || [x.name, x.phone, x.email ?? "", x.roomCode ?? ""].some((v) => v.toLowerCase().includes(needle)));
+  }, [list, filter, q]);
 
   const update = async (it: InquiryDoc, p: Partial<InquiryDoc>) => {
     if (p.status !== undefined && p.status !== it.status) {
@@ -189,91 +186,99 @@ export default function Inquiries() {
     }
   };
 
-  return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ marginTop: 0 }}>Yêu cầu thuê</h1>
+  const fmtTime = (ts: any) =>
+    ts?.seconds ? new Date(ts.seconds * 1000).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : "";
+  const initial = (n: string) => (n.trim()[0] || "?").toUpperCase();
+  const keys = Object.keys(STATUS_LABEL) as InquiryStatus[];
 
-      <div style={{ marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <label>Lọc trạng thái:&nbsp;
-          <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-            <option value="all">Tất cả ({list.length})</option>
-            {(Object.keys(STATUS_LABEL) as InquiryStatus[]).map((k) => (
-              <option key={k} value={k}>
-                {STATUS_LABEL[k]} ({list.filter((x) => x.status === k).length})
-              </option>
-            ))}
-          </select>
+  return (
+    <section className="ct iq">
+      <div className="ct-head">
+        <div>
+          <h2>Yêu cầu thuê</h2>
+          <p className="info" style={{ margin: "2px 0 0" }}>Khách gửi từ trang phòng. Liên hệ, hẹn xem và chốt thành hợp đồng.</p>
+        </div>
+      </div>
+
+      {err && <p className="error" role="alert">{err}</p>}
+
+      <div className="ct-toolbar">
+        <div className="ct-chips" role="group" aria-label="Lọc theo trạng thái">
+          <button type="button" className={"ct-chip" + (filter === "all" ? " on" : "")} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
+            Tất cả <span className="ct-chip-n">{list.length}</span>
+          </button>
+          {keys.map((k) => (
+            <button key={k} type="button" className={"ct-chip" + (filter === k ? " on" : "")} aria-pressed={filter === k} onClick={() => setFilter(k)}>
+              {STATUS_LABEL[k]} <span className="ct-chip-n">{list.filter((x) => x.status === k).length}</span>
+            </button>
+          ))}
+        </div>
+        <label className="ct-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input type="search" placeholder="Tìm tên, SĐT, phòng…" aria-label="Tìm yêu cầu" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
       </div>
+      <p className="ct-count" role="status" aria-atomic="true">
+        {!loading && list.length > 0 ? `Hiển thị ${filtered.length} / ${list.length} yêu cầu` : ""}
+      </p>
 
-      {err && <div style={{ color: "#c62828", marginBottom: 12 }}>{err}</div>}
-      {loading && <div>Đang tải…</div>}
-      {!loading && filtered.length === 0 && <div style={{ opacity: 0.6 }}>Chưa có yêu cầu nào.</div>}
+      {loading ? (
+        <div className="ct-list" aria-busy="true">{[0, 1, 2].map((i) => <div key={i} className="ct-card ct-skel" />)}</div>
+      ) : filtered.length === 0 ? (
+        <div className="ct-empty">
+          <strong>{list.length === 0 ? "Chưa có yêu cầu nào." : "Không có yêu cầu phù hợp bộ lọc."}</strong>
+          {list.length === 0
+            ? <span>Yêu cầu sẽ xuất hiện khi khách gửi form ở trang chi tiết phòng đang trống.</span>
+            : <button className="ghost" onClick={() => { setFilter("all"); setQ(""); }}>Xóa bộ lọc</button>}
+        </div>
+      ) : (
+        <div className="ct-list">
+          {filtered.map((it) => (
+            <article className={"ct-card iq-" + it.status} key={it.id} aria-busy={busy === it.id}>
+              <header className="ct-card-head">
+                <div className="iq-who">
+                  <span className="iq-avatar" aria-hidden="true">{initial(it.name)}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="ct-code" style={{ overflowWrap: "anywhere" }}>{it.name}</div>
+                    <div className="ct-sub">{fmtTime(it.createdAt)}</div>
+                  </div>
+                </div>
+                <span className={"tag iqs-" + it.status}>{STATUS_LABEL[it.status]}</span>
+              </header>
 
-      <div style={{ display: "grid", gap: 12 }}>
-        {filtered.map((it) => (
-          <div key={it.id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-              <div>
-                <strong>{it.name}</strong> — <a href={`tel:${it.phone}`}>{it.phone}</a>
-                {it.email ? <> · <a href={`mailto:${it.email}`}>{it.email}</a></> : null}
+              <dl className="ct-meta">
+                <div><dt><span className="sr">Điện thoại</span><IcPhone /></dt><dd><a href={`tel:${it.phone}`}>{it.phone}</a></dd></div>
+                {it.email ? <div><dt><span className="sr">Email</span><IcMail /></dt><dd><a href={`mailto:${it.email}`}>{it.email}</a></dd></div> : null}
+                <div><dt><span className="sr">Phòng</span><IcDoor /></dt><dd>Phòng {it.roomCode ?? it.roomId ?? "—"}</dd></div>
+                {it.preferredDate ? <div><dt><span className="sr">Hẹn xem</span><IcCal /></dt><dd className="ct-num">Hẹn xem: {it.preferredDate.split("-").reverse().join("/")}</dd></div> : null}
+              </dl>
+
+              {it.message && <p className="iq-msg">{it.message}</p>}
+
+              <div className="iq-controls">
+                <label className="iq-field">Trạng thái
+                  <select value={it.status} disabled={busy === it.id}
+                    onChange={(e) => update(it, { status: e.target.value as InquiryStatus })}>
+                    {keys.map((k) => <option key={k} value={k}>{STATUS_LABEL[k]}</option>)}
+                  </select>
+                </label>
+                <label className="iq-field">Ghi chú nội bộ
+                  <input placeholder="Thêm ghi chú…" defaultValue={it.notes ?? ""}
+                    onBlur={(e) => { if ((e.target.value || "") !== (it.notes ?? "")) update(it, { notes: e.target.value }); }} />
+                </label>
               </div>
-              <span style={{
-                background: STATUS_COLOR[it.status], color: "#fff",
-                padding: "2px 10px", borderRadius: 12, fontSize: 12,
-              }}>
-                {STATUS_LABEL[it.status]}
-              </span>
-            </div>
 
-            <div style={{ fontSize: 13, opacity: 0.75, marginTop: 6 }}>
-              Phòng: {it.roomCode ?? it.roomId ?? "—"}
-              {it.preferredDate ? ` · Hẹn xem: ${it.preferredDate}` : ""}
-              {it.createdAt?.seconds
-                ? ` · Gửi: ${new Date(it.createdAt.seconds * 1000).toLocaleString("vi-VN")}`
-                : ""}
-            </div>
-
-            {it.message && (
-              <div style={{ marginTop: 8, padding: 8, background: "#fafafa", borderRadius: 6, whiteSpace: "pre-wrap" }}>
-                {it.message}
-              </div>
-            )}
-
-            <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <select value={it.status} disabled={busy === it.id}
-                onChange={(e) => update(it, { status: e.target.value as InquiryStatus })}>
-                {(Object.keys(STATUS_LABEL) as InquiryStatus[]).map((k) => (
-                  <option key={k} value={k}>{STATUS_LABEL[k]}</option>
-                ))}
-              </select>
-              <input
-                placeholder="Ghi chú nội bộ…"
-                defaultValue={it.notes ?? ""}
-                onBlur={(e) => {
-                  if ((e.target.value || "") !== (it.notes ?? "")) update(it, { notes: e.target.value });
-                }}
-                style={{ flex: 1, minWidth: 220, padding: "6px 8px" }}
-              />
-            </div>
-
-            {it.contractId && (
-              <div style={{ fontSize: 13, marginTop: 6 }}>
-                <Link to={`/app/contracts/${it.contractId}/edit`}>Xem hợp đồng →</Link>
-              </div>
-            )}
-            {it.status === "converted" && !it.contractId && (
-              <div style={{ fontSize: 13, marginTop: 6 }}>
-                <Link to={`/app/inquiries/${it.id}/convert`}>Tạo hợp đồng cho yêu cầu này →</Link>
-              </div>
-            )}
-
-            {it.handledBy && (
-              <div style={{ fontSize: 12, opacity: 0.6, marginTop: 6 }}>Xử lý bởi: {it.handledBy}</div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+              {(it.contractId || it.status === "converted") && (
+                <footer className="ct-actions">
+                  {it.contractId
+                    ? <Link className="ct-btn" to={`/app/contracts/${it.contractId}/edit`}>Xem hợp đồng</Link>
+                    : <Link className="ct-btn" to={`/app/inquiries/${it.id}/convert`}>Tạo hợp đồng cho yêu cầu này</Link>}
+                </footer>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
